@@ -348,7 +348,9 @@
 .cs-card-float {
   position: relative;
   transform-style: preserve-3d;
-  animation: slabFloat 9s ease-in-out infinite;
+  /* No constant idle animation: a perpetually-moving card makes its own buttons
+     impossible to click (the target drifts out from under the cursor). The slab
+     stays still and only tilts in response to the cursor. */
 }
 .cs-card-shadow {
   position: absolute;
@@ -468,13 +470,16 @@
 }
 
 /* depth layers — each child sits on a different Z plane for real parallax */
-.cs-card-grade  { transform: translateZ(9px);  position: relative; z-index: 4; }
-.cs-card-title  { transform: translateZ(15px); position: relative; z-index: 4; }
-.cs-card-tabs   { transform: translateZ(9px);  position: relative; z-index: 4; }
-.cs-card-body   { transform: translateZ(3px);  position: relative; z-index: 2; }
-.cs-card-foot   { transform: translateZ(7px);  position: relative; z-index: 4; }
-.card-corner    { transform: translateZ(17px); z-index: 5; }
-.cs-card-close  { transform: translateZ(26px); }
+/* Interactive content sits FLAT on the card face (translateZ 0) so click hit-areas
+   line up exactly with the painted text — depth comes from the walls + glass, not by
+   popping the buttons forward (which offset their click targets under perspective). */
+.cs-card-grade  { transform: translateZ(0); position: relative; z-index: 4; }
+.cs-card-title  { transform: translateZ(0); position: relative; z-index: 4; }
+.cs-card-tabs   { transform: translateZ(0); position: relative; z-index: 4; }
+.cs-card-body   { transform: translateZ(0); position: relative; z-index: 2; }
+.cs-card-foot   { transform: translateZ(0); position: relative; z-index: 4; }
+.card-corner    { transform: translateZ(17px); z-index: 5; pointer-events: none; }
+.cs-card-close  { transform: translateZ(2px); }
 .cs-card-holo   { transform: translateZ(19px); z-index: 1; }
 @keyframes cardIn {
   0%   { opacity: 0; transform: translate(-50%, -50%) perspective(1400px) rotateX(-8deg) scale(0.94); }

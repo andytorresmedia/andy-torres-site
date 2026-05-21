@@ -351,9 +351,9 @@ function RDTab({ project }) {
 
 const LOADING_PHASES = ['Connecting media', 'Authenticating', 'Routing'];
 
-// Resting 3/4 display angle — the slab reads dimensional even before you touch it.
-const REST_RX = 7;
-const REST_RY = -15;
+// Rest facing straight at the camera; the slab only tilts while you move over it.
+const REST_RX = 0;
+const REST_RY = 0;
 
 function LoadingPhases() {
   const [i, setI] = useState(0);
@@ -388,8 +388,8 @@ export function CaseStudyPage() {
   const my = useMotionValue(50);
   const rxRaw = useMotionValue(REST_RX);
   const ryRaw = useMotionValue(REST_RY);
-  const rx = useSpring(rxRaw, { stiffness: 120, damping: 18, mass: 0.7 });
-  const ry = useSpring(ryRaw, { stiffness: 120, damping: 18, mass: 0.7 });
+  const rx = useSpring(rxRaw, { stiffness: 160, damping: 22, mass: 0.5 });
+  const ry = useSpring(ryRaw, { stiffness: 160, damping: 22, mass: 0.5 });
   // perspective() lives in the transform itself (must be the first function) — the CSS
   // `perspective` property didn't survive the backdrop-filtered wrapper. The idle-float
   // wrapper only translates, so it doesn't fight this self-contained perspective.
@@ -422,8 +422,8 @@ export function CaseStudyPage() {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    ryRaw.set(REST_RY + (x - 0.5) * 26);
-    rxRaw.set(REST_RX + (0.5 - y) * 22);
+    ryRaw.set(REST_RY + (x - 0.5) * 18);
+    rxRaw.set(REST_RX + (0.5 - y) * 14);
     mx.set(x * 100);
     my.set(y * 100);
   };

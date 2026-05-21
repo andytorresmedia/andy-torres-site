@@ -351,6 +351,10 @@ function RDTab({ project }) {
 
 const LOADING_PHASES = ['Connecting media', 'Authenticating', 'Routing'];
 
+// Resting 3/4 display angle — the slab reads dimensional even before you touch it.
+const REST_RX = 7;
+const REST_RY = -15;
+
 function LoadingPhases() {
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -382,11 +386,14 @@ export function CaseStudyPage() {
   // 3D tilt — spring-smoothed for inertia; CSS provides the preserve-3d depth.
   const mx = useMotionValue(50);
   const my = useMotionValue(50);
-  const rxRaw = useMotionValue(0);
-  const ryRaw = useMotionValue(0);
-  const rx = useSpring(rxRaw, { stiffness: 140, damping: 16, mass: 0.6 });
-  const ry = useSpring(ryRaw, { stiffness: 140, damping: 16, mass: 0.6 });
-  const cardTransform = useMotionTemplate`translate(-50%, -50%) perspective(1400px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+  const rxRaw = useMotionValue(REST_RX);
+  const ryRaw = useMotionValue(REST_RY);
+  const rx = useSpring(rxRaw, { stiffness: 120, damping: 18, mass: 0.7 });
+  const ry = useSpring(ryRaw, { stiffness: 120, damping: 18, mass: 0.7 });
+  // perspective() lives in the transform itself (must be the first function) — the CSS
+  // `perspective` property didn't survive the backdrop-filtered wrapper. The idle-float
+  // wrapper only translates, so it doesn't fight this self-contained perspective.
+  const cardTransform = useMotionTemplate`perspective(1600px) rotateX(${rx}deg) rotateY(${ry}deg)`;
   const rxDeg = useMotionTemplate`${rx}deg`;
   const ryDeg = useMotionTemplate`${ry}deg`;
   const mxPct = useMotionTemplate`${mx}%`;
@@ -415,14 +422,14 @@ export function CaseStudyPage() {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    ryRaw.set((x - 0.5) * 14);
-    rxRaw.set((0.5 - y) * 14);
+    ryRaw.set(REST_RY + (x - 0.5) * 26);
+    rxRaw.set(REST_RX + (0.5 - y) * 22);
     mx.set(x * 100);
     my.set(y * 100);
   };
   const onCardMouseLeave = () => {
-    rxRaw.set(0);
-    ryRaw.set(0);
+    rxRaw.set(REST_RX);
+    ryRaw.set(REST_RY);
     mx.set(50);
     my.set(50);
   };
@@ -511,6 +518,8 @@ export function CaseStudyPage() {
                 if (e.target === e.currentTarget) setDetailsOpen(false);
               }}
             >
+              <div className="cs-card-float">
+              <div className="cs-card-shadow" aria-hidden="true" />
               <motion.div
                 className="cs-card"
                 style={{ transform: cardTransform, '--rx': rxDeg, '--ry': ryDeg, '--mx': mxPct, '--my': myPct }}
@@ -521,8 +530,13 @@ export function CaseStudyPage() {
                 transition={{ duration: 0.28 }}
               >
                 <div className="cs-card-back" />
+                <span className="slab-wall top" aria-hidden="true" />
+                <span className="slab-wall right" aria-hidden="true" />
+                <span className="slab-wall bottom" aria-hidden="true" />
+                <span className="slab-wall left" aria-hidden="true" />
                 <div className="cs-card-holo" />
                 <div className="cs-card-spec" />
+                <div className="cs-card-glass" />
                 <div className="cs-card-grade">
                   <span className="grade-l mono">[FR-{(project.id || '').toUpperCase()}] · CASE FILE</span>
                   <span className="grade-c mono">MASTER FILE</span>
@@ -575,6 +589,7 @@ export function CaseStudyPage() {
                   ✕
                 </button>
               </motion.div>
+              </div>
             </div>
           )}
         </Fragment>

@@ -354,6 +354,33 @@ const LOADING_PHASES = ['Connecting media', 'Authenticating', 'Routing'];
 // Rest facing straight at the camera; the slab only tilts while you move over it.
 const REST_RX = 0;
 const REST_RY = 0;
+const POINTER_TILT_X = 14;
+const POINTER_TILT_Y = 16;
+const DEVICE_TILT_X = 7;
+const DEVICE_TILT_Y = 8;
+const DEVICE_TILT_RANGE = 24;
+
+const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const isTouchTiltDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+};
+
+const requestOrientationTilt = async () => {
+  if (typeof window === 'undefined' || !window.DeviceOrientationEvent) return false;
+  const requestPermission = window.DeviceOrientationEvent.requestPermission;
+
+  if (typeof requestPermission === 'function') {
+    try {
+      return (await requestPermission()) === 'granted';
+    } catch {
+      return false;
+    }
+  }
+
+  return true;
+};
 
 function LoadingPhases() {
   const [i, setI] = useState(0);
@@ -380,8 +407,12 @@ export function CaseStudyPage() {
 
   const [loading, setLoading] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [gyroTiltActive, setGyroTiltActive] = useState(false);
   const [tab, setTab] = useState('about');
   const videoRef = useRef(null);
+  const orientationBaseRef = useRef(null);
+  const touchDragRef = useRef(null);
+  const touchInteractingRef = useRef(false);
 
   // 3D tilt — only the rotation updates per mouse move (a cheap GPU transform);
   // the glow/sheen layers are static, so hover stays fluid even on huge displays.
@@ -410,11 +441,56 @@ export function CaseStudyPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [detailsOpen, navigate]);
 
+  useEffect(() => {
+    if (detailsOpen) return;
+    setGyroTiltActive(false);
+    orientationBaseRef.current = null;
+    touchDragRef.current = null;
+    touchInteractingRef.current = false;
+    rxRaw.set(REST_RX);
+    ryRaw.set(REST_RY);
+  }, [detailsOpen, gyroTiltActive, rxRaw, ryRaw]);
+
+  useEffect(() => {
+    if (!detailsOpen || !gyroTiltActive) return undefined;
+
+    const onOrientation = (event) => {
+      if (touchInteractingRef.current || typeof event.beta !== 'number' || typeof event.gamma !== 'number') return;
+
+      if (!orientationBaseRef.current) {
+        orientationBaseRef.current = { beta: event.beta, gamma: event.gamma };
+      }
+
+      const deltaBeta = clamp(event.beta - orientationBaseRef.current.beta, -DEVICE_TILT_RANGE, DEVICE_TILT_RANGE);
+      const deltaGamma = clamp(event.gamma - orientationBaseRef.current.gamma, -DEVICE_TILT_RANGE, DEVICE_TILT_RANGE);
+      ryRaw.set(REST_RY + (deltaGamma / DEVICE_TILT_RANGE) * DEVICE_TILT_Y);
+      rxRaw.set(REST_RX + (-deltaBeta / DEVICE_TILT_RANGE) * DEVICE_TILT_X);
+    };
+
+    window.addEventListener('deviceorientation', onOrientation, true);
+    return () => window.removeEventListener('deviceorientation', onOrientation, true);
+  }, [detailsOpen, gyroTiltActive, rxRaw, ryRaw]);
+
   if (!project) return <Navigate to="/work" replace />;
 
   const easeCardTiltToRest = () => {
     rxRaw.set(rxRaw.get() + (REST_RX - rxRaw.get()) * 0.25);
     ryRaw.set(ryRaw.get() + (REST_RY - ryRaw.get()) * 0.25);
+  };
+
+  const onDetailsButtonClick = async () => {
+    if (detailsOpen) {
+      setDetailsOpen(false);
+      return;
+    }
+
+    orientationBaseRef.current = null;
+    setGyroTiltActive(false);
+    setDetailsOpen(true);
+
+    if (isTouchTiltDevice()) {
+      setGyroTiltActive(await requestOrientationTilt());
+    }
   };
 
   const onCardMouseMove = (e) => {
@@ -426,12 +502,43 @@ export function CaseStudyPage() {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    ryRaw.set(REST_RY + (x - 0.5) * 16);
-    rxRaw.set(REST_RX + (0.5 - y) * 14);
+    ryRaw.set(REST_RY + (x - 0.5) * POINTER_TILT_Y);
+    rxRaw.set(REST_RX + (0.5 - y) * POINTER_TILT_X);
   };
   const onCardMouseLeave = () => {
     rxRaw.set(REST_RX);
     ryRaw.set(REST_RY);
+  };
+  const onCardTouchStart = (e) => {
+    touchInteractingRef.current = true;
+
+    if (e.target instanceof Element && e.target.closest('.cs-card-inset')) {
+      touchDragRef.current = null;
+      easeCardTiltToRest();
+      return;
+    }
+
+    const touch = e.touches[0];
+    if (!touch) return;
+    touchDragRef.current = { rect: e.currentTarget.getBoundingClientRect() };
+  };
+  const onCardTouchMove = (e) => {
+    const touch = e.touches[0];
+    if (!touch || !touchDragRef.current) {
+      if (e.target instanceof Element && e.target.closest('.cs-card-inset')) easeCardTiltToRest();
+      return;
+    }
+
+    const { rect } = touchDragRef.current;
+    const x = (touch.clientX - rect.left) / rect.width;
+    const y = (touch.clientY - rect.top) / rect.height;
+    ryRaw.set(REST_RY + (x - 0.5) * DEVICE_TILT_Y * 2);
+    rxRaw.set(REST_RX + (0.5 - y) * DEVICE_TILT_X * 2);
+  };
+  const onCardTouchEnd = () => {
+    touchInteractingRef.current = false;
+    touchDragRef.current = null;
+    easeCardTiltToRest();
   };
 
   return (
@@ -505,7 +612,7 @@ export function CaseStudyPage() {
           <span className="section-bracket bl" />
           <span className="section-bracket br" />
 
-          <button className="cs-details-btn" onClick={() => setDetailsOpen((v) => !v)}>
+          <button className="cs-details-btn" onClick={onDetailsButtonClick}>
             {detailsOpen ? 'Hide File ↓' : 'Open Project File ↑'}
           </button>
 
@@ -525,6 +632,10 @@ export function CaseStudyPage() {
                 style={{ transform: cardTransform }}
                 onMouseMove={onCardMouseMove}
                 onMouseLeave={onCardMouseLeave}
+                onTouchStart={onCardTouchStart}
+                onTouchMove={onCardTouchMove}
+                onTouchEnd={onCardTouchEnd}
+                onTouchCancel={onCardTouchEnd}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.28 }}

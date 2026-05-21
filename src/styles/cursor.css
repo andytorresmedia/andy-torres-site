@@ -1,16 +1,17 @@
 /* cursor.css — custom context-aware cursor */
 
-/* hide native cursor on the page-stage (form fields keep native) */
+/* Custom cursor is paused; keep native browser cursors visible. */
 .page-stage,
 .cmdk-scrim,
-.cs-overlay { cursor: none; }
+.cs-overlay { cursor: auto; }
 .page-stage input,
 .page-stage textarea,
 .page-stage select,
 .cmdk-scrim input { cursor: text; }
-button, [data-cursor], a { cursor: none; }
+button, [data-cursor], a { cursor: pointer; }
 
 .cursor {
+  display: none !important;
   position: fixed;
   top: 0; left: 0;
   width: 10px; height: 10px;
@@ -89,6 +90,7 @@ button, [data-cursor], a { cursor: none; }
 
 /* outer follower ring — trails the dot with slight lag */
 .cursor-ring {
+  display: none !important;
   position: fixed;
   top: 0; left: 0;
   width: 36px; height: 36px;

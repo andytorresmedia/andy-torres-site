@@ -3,8 +3,7 @@
    1. Fix the prototype's self-referential `--accent-live: var(--accent-live)`
       (the real value was injected at runtime by the tweaks panel, which we drop).
       Lock it to signal orange.
-   2. Hide the native cursor app-wide (the custom <Cursor/> replaces it); keep a
-      text caret in form fields; restore the native cursor on touch / no-hover.
+   2. Keep native cursors app-wide while the custom cursor is paused.
    3. App-shell classes for the react-router + AnimatePresence page slide that
       replaces the prototype's `.page-stage` translateX mechanism. */
 
@@ -12,20 +11,17 @@
   --accent-live: #ff5b1f; /* signal orange — formerly a JS-injected palette value */
 }
 
-/* ── custom cursor: hide native everywhere, keep caret in fields ── */
-body { cursor: none; }
+/* native cursor: custom cursor paused for now */
+body { cursor: auto; }
 input,
 textarea,
 select { cursor: text; }
 
-/* The custom cursor stands in for every state — never reveal the native hand/arrow
-   over buttons/links. The ported prototype sets cursor:pointer in many places, which
-   flickers the native cursor in and out over the custom one. Hover devices only. */
 @media (hover: hover) {
   button,
   a,
   [role="button"],
-  [data-cursor] { cursor: none !important; }
+  [data-cursor] { cursor: pointer !important; }
 }
 
 @media (hover: none), (pointer: coarse) {

@@ -33,17 +33,26 @@ await page.screenshot({ path: `${OUT}/slab-rest.png` }); // straight-facing at r
 
 // CLICK RELIABILITY: click each tab by its word; confirm the tab's content renders.
 const checks = [['Gallery', '.cs-gallery'], ['R&D', '.cs-rd-grid'], ['About', '.cs-about-row']];
+const cursorResult = { nativeBodyCursor: false, customDotHidden: false };
 const tabResult = {};
 const galleryResult = {
   progressRemoved: false,
   wheelChangedFrame: false,
   edgeWheelChangedFrame: false,
+  centerClickIgnored: false,
   sideClickChangedFrame: false,
   thumbChangedFrame: false,
 };
 const contentResult = { aboutWheelScrollsFromTitle: false };
 for (const [name, sel] of checks) {
   try {
+    if (!cursorResult.nativeBodyCursor) {
+      cursorResult.nativeBodyCursor = await page.evaluate(() => getComputedStyle(document.body).cursor !== 'none');
+      cursorResult.customDotHidden = await page.locator('.cursor').evaluateAll((els) =>
+        els.length === 0 || els.every((el) => getComputedStyle(el).display === 'none'),
+      );
+    }
+
     await page.locator('.cs-card-tabs .cs-tab', { hasText: name }).click({ timeout: 5000 });
     await page.waitForTimeout(450);
     tabResult[name] = await page.locator(sel).first().isVisible();
@@ -63,6 +72,11 @@ for (const [name, sel] of checks) {
       await page.waitForTimeout(450);
       const afterEdgeWheel = await page.locator('.cs-gallery-caption .count').first().innerText();
       galleryResult.edgeWheelChangedFrame = afterEdgeWheel !== after;
+
+      await page.mouse.click(stageBox.x + stageBox.width * 0.5, stageBox.y + stageBox.height * 0.44);
+      await page.waitForTimeout(350);
+      const afterCenterClick = await page.locator('.cs-gallery-caption .count').first().innerText();
+      galleryResult.centerClickIgnored = afterCenterClick === afterEdgeWheel;
 
       const rightBox = await page.locator('.cs-gallery-half.right').boundingBox({ timeout: 5000 });
       if (!rightBox) throw new Error('gallery right hit zone has no bounding box');
@@ -126,11 +140,13 @@ await page.screenshot({ path: `${OUT}/slab-tilt.png` });
 await browser.close();
 const benign = /play\(\)|AbortError|NotAllowedError|favicon|ERR_|media resource|Autoplay/i;
 const meaningful = errors.filter((e) => !benign.test(e));
+const cursorPass = Object.values(cursorResult).every(Boolean);
 const tabsPass = Object.values(tabResult).every(Boolean);
 const galleryPass = Object.values(galleryResult).every(Boolean);
 const contentPass = Object.values(contentResult).every(Boolean);
-const overallPass = tabsPass && galleryPass && contentPass && closeXPass && meaningful.length === 0;
+const overallPass = cursorPass && tabsPass && galleryPass && contentPass && closeXPass && meaningful.length === 0;
 
+console.log('native cursor restored:', JSON.stringify(cursorResult), cursorPass ? 'PASS' : 'FAIL');
 console.log('tab clicks open their content:', JSON.stringify(tabResult), tabsPass ? 'PASS' : 'FAIL');
 console.log('gallery manual controls:', JSON.stringify(galleryResult), galleryPass ? 'PASS' : 'FAIL');
 console.log('card content scrolling:', JSON.stringify(contentResult), contentPass ? 'PASS' : 'FAIL');

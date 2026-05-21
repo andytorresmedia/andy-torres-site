@@ -269,7 +269,10 @@ function GalleryTab({ project }) {
     if (items.length < 2 || (e.button !== undefined && e.button !== 0)) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const action = e.clientX < rect.left + rect.width / 2 ? prev : next;
+    const direction = galleryDirectionFromPoint(e.clientX, rect);
+    if (!direction) return;
+
+    const action = direction === 'prev' ? prev : next;
     e.preventDefault();
     e.stopPropagation();
     action();
@@ -459,6 +462,7 @@ const CARD_TABS = ['about', 'gallery', 'rd'];
 const GALLERY_NAV_EVENT = 'frontrow:gallery-nav';
 const GALLERY_SHOW_EVENT = 'frontrow:gallery-show';
 const GALLERY_WHEEL_EVENT = 'frontrow:gallery-wheel';
+const GALLERY_EDGE_HIT_RATIO = 1 / 3;
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 const isPointInRect = (clientX, clientY, rect, slack = 0) => (
@@ -467,6 +471,12 @@ const isPointInRect = (clientX, clientY, rect, slack = 0) => (
   clientY >= rect.top - slack &&
   clientY <= rect.bottom + slack
 );
+const galleryDirectionFromPoint = (clientX, rect) => {
+  const x = (clientX - rect.left) / rect.width;
+  if (x <= GALLERY_EDGE_HIT_RATIO) return 'prev';
+  if (x >= 1 - GALLERY_EDGE_HIT_RATIO) return 'next';
+  return null;
+};
 
 const isTouchTiltDevice = () => {
   if (typeof window === 'undefined') return false;
@@ -546,12 +556,14 @@ export function CaseStudyPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [gyroTiltActive, setGyroTiltActive] = useState(false);
   const [tab, setTab] = useState('about');
+  const [galleryHoverZone, setGalleryHoverZone] = useState('none');
   const videoRef = useRef(null);
   const cardTabsRef = useRef(null);
   const cardFloatRef = useRef(null);
   const cardBodyRef = useRef(null);
   const cardCloseRef = useRef(null);
   const cardHoverRectRef = useRef(null);
+  const galleryHoverZoneRef = useRef('none');
   const orientationBaseRef = useRef(null);
   const touchDragRef = useRef(null);
   const touchInteractingRef = useRef(false);
@@ -604,9 +616,17 @@ export function CaseStudyPage() {
     cardHoverRectRef.current = null;
     touchDragRef.current = null;
     touchInteractingRef.current = false;
+    galleryHoverZoneRef.current = 'none';
+    setGalleryHoverZone('none');
     rxRaw.set(REST_RX);
     ryRaw.set(REST_RY);
   }, [detailsOpen, gyroTiltActive, rxRaw, ryRaw]);
+
+  useEffect(() => {
+    if (tab === 'gallery') return;
+    galleryHoverZoneRef.current = 'none';
+    setGalleryHoverZone('none');
+  }, [tab]);
 
   useEffect(() => {
     if (!detailsOpen || !gyroTiltActive) return undefined;
@@ -687,6 +707,12 @@ export function CaseStudyPage() {
     ryRaw.set(REST_RY + (x - 0.5) * POINTER_TILT_Y * scale);
     rxRaw.set(REST_RX + (0.5 - y) * POINTER_TILT_X * scale);
   };
+  const updateGalleryHoverZone = (zone) => {
+    const nextZone = zone || 'none';
+    if (galleryHoverZoneRef.current === nextZone) return;
+    galleryHoverZoneRef.current = nextZone;
+    setGalleryHoverZone(nextZone);
+  };
 
   const onDetailsButtonClick = async () => {
     if (detailsOpen) {
@@ -756,9 +782,12 @@ export function CaseStudyPage() {
         const isGalleryHit = isPointInRect(e.clientX, e.clientY, rect, hitSlack);
 
         if (isGalleryHit) {
+          const direction = galleryDirectionFromPoint(e.clientX, rect);
+          if (!direction) return;
+
           galleryStage.dispatchEvent(
             new CustomEvent(GALLERY_NAV_EVENT, {
-              detail: { direction: e.clientX < rect.left + rect.width / 2 ? 'prev' : 'next' },
+              detail: { direction },
             }),
           );
           e.preventDefault();
@@ -793,12 +822,21 @@ export function CaseStudyPage() {
     cardHoverRectRef.current = readCardLayoutRect(e.currentTarget);
   };
   const onCardMouseMove = (e) => {
+    if (tab === 'gallery') {
+      const galleryStage = cardBodyRef.current?.querySelector('.cs-gallery-stage');
+      if (galleryStage) {
+        const rect = galleryStage.getBoundingClientRect();
+        updateGalleryHoverZone(isPointInRect(e.clientX, e.clientY, rect, 14) ? galleryDirectionFromPoint(e.clientX, rect) : null);
+      }
+    }
+
     const rect = cardHoverRectRef.current || readCardLayoutRect(e.currentTarget);
     const scale = isCardStableTarget(e.target) ? CONTROL_TILT_SCALE : 1;
     setCardTiltFromPoint(e.clientX, e.clientY, rect, scale);
   };
   const onCardMouseLeave = () => {
     cardHoverRectRef.current = null;
+    updateGalleryHoverZone(null);
     rxRaw.set(REST_RX);
     ryRaw.set(REST_RY);
   };
@@ -919,7 +957,7 @@ export function CaseStudyPage() {
             >
               <div
                 ref={cardFloatRef}
-                className="cs-card-float"
+                className={`cs-card-float gallery-zone-${galleryHoverZone}`}
                 onPointerDownCapture={onCardPointerDownCapture}
                 onMouseEnter={onCardMouseEnter}
                 onMouseMove={onCardMouseMove}

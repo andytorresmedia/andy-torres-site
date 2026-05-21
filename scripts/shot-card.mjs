@@ -27,7 +27,22 @@ page.on('pageerror', (e) => errors.push('PAGEERROR: ' + (e && e.message)));
 
 await page.goto(BASE + '/work/rockets', { waitUntil: 'domcontentloaded', timeout: 30000 });
 await page.waitForTimeout(2600); // loading screen (1400ms) + settle
-await page.getByText('Open Project File').click({ timeout: 8000 }).catch((e) => errors.push('OPEN: ' + e.message));
+
+const navResult = { navChildrenClickable: false, searchOpens: false };
+try {
+  navResult.navChildrenClickable = await page.locator('.nav > *').evaluateAll((els) =>
+    els.length > 0 && els.every((el) => getComputedStyle(el).pointerEvents !== 'none'),
+  );
+  await page.getByRole('button', { name: 'Open search' }).click({ timeout: 5000 });
+  await page.waitForTimeout(250);
+  navResult.searchOpens = await page.locator('.cmdk').isVisible();
+  await page.locator('.cmdk-scrim').click({ position: { x: 5, y: 5 }, timeout: 5000 });
+  await page.locator('.cmdk').waitFor({ state: 'hidden', timeout: 5000 });
+} catch (e) {
+  errors.push('NAV: ' + e.message);
+}
+
+await page.locator('.cs-details-btn').click({ timeout: 8000 }).catch((e) => errors.push('OPEN: ' + e.message));
 await page.waitForTimeout(1300); // entrance + light sweep
 await page.screenshot({ path: `${OUT}/slab-rest.png` }); // straight-facing at rest
 
@@ -124,8 +139,8 @@ try {
 }
 
 if (closeXPass) {
-  await page.getByText('Open Project File').click({ timeout: 8000 }).catch((e) => errors.push('REOPEN: ' + e.message));
-  await page.waitForTimeout(1000);
+  await page.locator('.cs-details-btn').click({ timeout: 8000 }).catch((e) => errors.push('REOPEN: ' + e.message));
+  await page.locator('.cs-card').waitFor({ state: 'visible', timeout: 8000 }).catch((e) => errors.push('REOPEN WAIT: ' + e.message));
 }
 
 // Tilt to show the thickness on the edges.
@@ -141,11 +156,13 @@ await browser.close();
 const benign = /play\(\)|AbortError|NotAllowedError|favicon|ERR_|media resource|Autoplay/i;
 const meaningful = errors.filter((e) => !benign.test(e));
 const cursorPass = Object.values(cursorResult).every(Boolean);
+const navPass = Object.values(navResult).every(Boolean);
 const tabsPass = Object.values(tabResult).every(Boolean);
 const galleryPass = Object.values(galleryResult).every(Boolean);
 const contentPass = Object.values(contentResult).every(Boolean);
-const overallPass = cursorPass && tabsPass && galleryPass && contentPass && closeXPass && meaningful.length === 0;
+const overallPass = cursorPass && navPass && tabsPass && galleryPass && contentPass && closeXPass && meaningful.length === 0;
 
+console.log('case route nav controls:', JSON.stringify(navResult), navPass ? 'PASS' : 'FAIL');
 console.log('native cursor restored:', JSON.stringify(cursorResult), cursorPass ? 'PASS' : 'FAIL');
 console.log('tab clicks open their content:', JSON.stringify(tabResult), tabsPass ? 'PASS' : 'FAIL');
 console.log('gallery manual controls:', JSON.stringify(galleryResult), galleryPass ? 'PASS' : 'FAIL');

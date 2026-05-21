@@ -5,7 +5,7 @@
 // from case-study.css. Tabs: About / Gallery (smash-cut + keyboard) / R&D (autoplay).
 
 import { useEffect, useMemo, useRef, useState, Fragment } from 'react';
-import { useParams, useNavigate, Navigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { motion, useMotionValue, useSpring, useMotionTemplate } from 'motion/react';
 import MuxPlayer from '@mux/mux-player-react';
 import { asset } from '../lib/assets';
@@ -350,6 +350,8 @@ function RDTab({ project }) {
 /* ─────────── Loading ─────────── */
 
 const LOADING_PHASES = ['Connecting media', 'Authenticating', 'Routing'];
+const CASE_STUDY_LOAD_MS = 1400;
+const FEATURED_CASE_STUDY_LOAD_MS = 1900;
 
 // Rest facing straight at the camera; the slab only tilts while you move over it.
 const REST_RX = 0;
@@ -437,18 +439,18 @@ function LoadingPhases() {
 export function CaseStudyPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const project = useMemo(() => getProjectBySlug(slug), [slug]);
   const muxId = project ? getMuxPlaybackId(project.id) : null;
+  const loadingDelay = location.state?.lingerLoading ? FEATURED_CASE_STUDY_LOAD_MS : CASE_STUDY_LOAD_MS;
 
   const [loading, setLoading] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [detailsLoading, setDetailsLoading] = useState(false);
   const [gyroTiltActive, setGyroTiltActive] = useState(false);
   const [tab, setTab] = useState('about');
   const videoRef = useRef(null);
   const cardTabsRef = useRef(null);
   const cardHoverRectRef = useRef(null);
-  const fileLoadingTimerRef = useRef(null);
   const orientationBaseRef = useRef(null);
   const touchDragRef = useRef(null);
   const touchInteractingRef = useRef(false);
@@ -465,9 +467,9 @@ export function CaseStudyPage() {
 
   useEffect(() => {
     setLoading(true);
-    const t = setTimeout(() => setLoading(false), 1400);
+    const t = setTimeout(() => setLoading(false), loadingDelay);
     return () => clearTimeout(t);
-  }, [slug]);
+  }, [slug, loadingDelay]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -482,11 +484,6 @@ export function CaseStudyPage() {
 
   useEffect(() => {
     if (detailsOpen) return;
-    setDetailsLoading(false);
-    if (fileLoadingTimerRef.current) {
-      clearTimeout(fileLoadingTimerRef.current);
-      fileLoadingTimerRef.current = null;
-    }
     setGyroTiltActive(false);
     orientationBaseRef.current = null;
     cardHoverRectRef.current = null;
@@ -495,10 +492,6 @@ export function CaseStudyPage() {
     rxRaw.set(REST_RX);
     ryRaw.set(REST_RY);
   }, [detailsOpen, gyroTiltActive, rxRaw, ryRaw]);
-
-  useEffect(() => () => {
-    if (fileLoadingTimerRef.current) clearTimeout(fileLoadingTimerRef.current);
-  }, []);
 
   useEffect(() => {
     if (!detailsOpen || !gyroTiltActive) return undefined;
@@ -540,13 +533,7 @@ export function CaseStudyPage() {
 
     orientationBaseRef.current = null;
     setGyroTiltActive(false);
-    setDetailsLoading(true);
     setDetailsOpen(true);
-    if (fileLoadingTimerRef.current) clearTimeout(fileLoadingTimerRef.current);
-    fileLoadingTimerRef.current = setTimeout(() => {
-      setDetailsLoading(false);
-      fileLoadingTimerRef.current = null;
-    }, 950);
 
     if (isTouchTiltDevice()) {
       setGyroTiltActive(await requestOrientationTilt());
@@ -703,23 +690,6 @@ export function CaseStudyPage() {
                 if (e.target === e.currentTarget) setDetailsOpen(false);
               }}
             >
-              {detailsLoading ? (
-                <div className="cs-file-loading">
-                  <div className="loading-logo">
-                    <img className="loading-mark" src={asset('assets/at-mark.png')} alt="" />
-                    <span className="loading-word">
-                      FRONT&nbsp;ROW<span className="dot">.</span>
-                    </span>
-                  </div>
-                  <div className="dots">
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                  <div className="label">Loading project file · {project.title}</div>
-                  <LoadingPhases />
-                </div>
-              ) : (
               <div
                 className="cs-card-float"
                 onPointerDownCapture={onCardPointerDownCapture}
@@ -800,7 +770,6 @@ export function CaseStudyPage() {
                 </button>
               </motion.div>
               </div>
-              )}
             </div>
           )}
         </Fragment>

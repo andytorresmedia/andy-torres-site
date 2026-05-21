@@ -23,7 +23,7 @@ export function useNav() {
 /** Returns openProject(id) → navigates to that project's case study. */
 export function useProjectOpener() {
   const navigate = useNavigate();
-  return useCallback((id) => navigate(`/work/${id}`), [navigate]);
+  return useCallback((id, options) => navigate(`/work/${id}`, options), [navigate]);
 }
 
 /** Current top-level page name, derived from the path. */

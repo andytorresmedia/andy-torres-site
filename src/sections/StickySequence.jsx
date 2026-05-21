@@ -167,7 +167,7 @@ export function StickySequence() {
                   {cur.sequenceTag} &nbsp;—&nbsp; {cur.role}
                 </div>
                 <div>
-                  <button className="seq-view" onClick={() => openProject(cur.id)} type="button">
+                  <button className="seq-view" onClick={() => openProject(cur.id, { state: { lingerLoading: true } })} type="button">
                     View Project <span className="arrow">→</span>
                   </button>
                 </div>

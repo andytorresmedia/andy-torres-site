@@ -566,27 +566,41 @@ export function CaseStudyPage() {
     }
   };
 
+  const isPointOverCardClose = (clientX, clientY) => {
+    const closeEl = cardCloseRef.current;
+    if (!closeEl) return false;
+
+    const rect = closeEl.getBoundingClientRect();
+    const closeSlack = 18;
+    return (
+      clientX >= rect.left - closeSlack &&
+      clientX <= rect.right + closeSlack &&
+      clientY >= rect.top - closeSlack &&
+      clientY <= rect.bottom + closeSlack
+    );
+  };
+
+  const closeCardFromPointer = (e) => {
+    if (e.button !== undefined && e.button !== 0) return false;
+    if (!isPointOverCardClose(e.clientX, e.clientY)) return false;
+
+    setDetailsOpen(false);
+    e.preventDefault();
+    e.stopPropagation();
+    return true;
+  };
+
+  const onCardWrapPointerDownCapture = (e) => {
+    closeCardFromPointer(e);
+  };
+
   const onCardPointerDownCapture = (e) => {
     if (e.button !== undefined && e.button !== 0) return;
+    if (closeCardFromPointer(e)) return;
+
     const cardRect = readCardLayoutRect(e.currentTarget);
     const x = e.clientX - cardRect.left;
     const y = e.clientY - cardRect.top;
-
-    const closeEl = cardCloseRef.current;
-    if (closeEl) {
-      const closeSlack = 12;
-      if (
-        x >= closeEl.offsetLeft - closeSlack &&
-        x <= closeEl.offsetLeft + closeEl.offsetWidth + closeSlack &&
-        y >= closeEl.offsetTop - closeSlack &&
-        y <= closeEl.offsetTop + closeEl.offsetHeight + closeSlack
-      ) {
-        setDetailsOpen(false);
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-    }
 
     const tabsEl = cardTabsRef.current;
     if (!tabsEl) return;
@@ -729,6 +743,7 @@ export function CaseStudyPage() {
           {detailsOpen && (
             <div
               className="cs-card-wrap"
+              onPointerDownCapture={onCardWrapPointerDownCapture}
               onClick={(e) => {
                 if (e.target === e.currentTarget) setDetailsOpen(false);
               }}

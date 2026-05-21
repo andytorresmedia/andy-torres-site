@@ -58,7 +58,13 @@ await page.screenshot({ path: `${OUT}/slab-tabs.png` });
 
 let closeXPass = false;
 try {
-  await page.locator('.cs-card-close').click({ timeout: 5000 });
+  await page.locator('.cs-card').evaluate((el) => {
+    el.style.transform = 'perspective(1600px) rotateX(9deg) rotateY(-18deg)';
+  });
+  await page.waitForTimeout(250);
+  const closeBox = await page.locator('.cs-card-close').boundingBox({ timeout: 5000 });
+  if (!closeBox) throw new Error('card close button has no bounding box');
+  await page.mouse.click(closeBox.x + closeBox.width / 2, closeBox.y + closeBox.height / 2);
   await page.waitForTimeout(350);
   closeXPass = await page.locator('.cs-card').count() === 0;
   if (!closeXPass) errors.push('CLOSE X: card stayed open');

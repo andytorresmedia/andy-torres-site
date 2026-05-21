@@ -1,0 +1,40 @@
+*{
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.hero_bio {
+  width: 100%;
+  height: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bio-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+  width: 70%;
+
+  margin-bottom: 80px;
+  @media (max-width: 600px) {
+    margin-top: 100px;
+  }
+
+  @media (max-width: 320px) {
+    margin-top: 90px;
+  }
+}
+
+.bio {
+  font-size: large;
+  font-family: 'Syne', sans-serif;
+  color: whitesmoke;
+  line-height: 2rem;
+}

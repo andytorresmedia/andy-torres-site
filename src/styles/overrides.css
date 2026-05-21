@@ -1,0 +1,75 @@
+/* overrides.css — production overrides for the ported Front Row design system.
+   Loaded LAST so it wins the cascade. Three jobs:
+   1. Fix the prototype's self-referential `--accent-live: var(--accent-live)`
+      (the real value was injected at runtime by the tweaks panel, which we drop).
+      Lock it to signal orange.
+   2. Hide the native cursor app-wide (the custom <Cursor/> replaces it); keep a
+      text caret in form fields; restore the native cursor on touch / no-hover.
+   3. App-shell classes for the react-router + AnimatePresence page slide that
+      replaces the prototype's `.page-stage` translateX mechanism. */
+
+:root {
+  --accent-live: #ff5b1f; /* signal orange — formerly a JS-injected palette value */
+}
+
+/* ── custom cursor: hide native everywhere, keep caret in fields ── */
+body { cursor: none; }
+input,
+textarea,
+select { cursor: text; }
+
+@media (hover: none), (pointer: coarse) {
+  body,
+  input,
+  textarea,
+  select { cursor: auto; }
+}
+
+/* ── app shell: a fixed-viewport stage; each route is an absolutely-positioned
+      panel that scrolls internally and slides horizontally on navigation ── */
+.fr-stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: 1;
+}
+.fr-page {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--ink);
+  scrollbar-width: thin;
+  scrollbar-color: var(--mute-2) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.fr-page::-webkit-scrollbar { width: 6px; }
+.fr-page::-webkit-scrollbar-track { background: transparent; }
+.fr-page::-webkit-scrollbar-thumb { background: var(--mute-2); }
+
+/* during a slide, freeze panel scroll + interaction to avoid jank */
+.fr-stage.is-transitioning .fr-page {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* The case study is a full-screen "overlay" in the prototype (position: fixed).
+   As a route it must ride the page-slide instead of escaping to the viewport, so
+   contain it to the sliding panel. */
+.fr-page .cs-overlay {
+  position: absolute;
+}
+
+/* Mux Player, when a playback ID is configured: fill the cinematic backdrop and
+   theme its controls to the signal accent. */
+.cs-video-wrap mux-player {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  --controls-backdrop-color: rgba(11, 11, 12, 0.4);
+  --media-object-fit: cover;
+  --media-object-position: center;
+}

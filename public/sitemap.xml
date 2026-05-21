@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Static sitemap. TODO: regenerate when projects change or the final domain
+     is set (currently andytorresfilms.com). -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://andytorresfilms.com/</loc><changefreq>monthly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://andytorresfilms.com/work</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://andytorresfilms.com/about</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://andytorresfilms.com/contact</loc><changefreq>yearly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/rockets</loc><priority>0.8</priority></url>
+  <url><loc>https://andytorresfilms.com/work/sblx</loc><priority>0.8</priority></url>
+  <url><loc>https://andytorresfilms.com/work/mextour</loc><priority>0.8</priority></url>
+  <url><loc>https://andytorresfilms.com/work/hrf1</loc><priority>0.8</priority></url>
+  <url><loc>https://andytorresfilms.com/work/finalfour</loc><priority>0.8</priority></url>
+  <url><loc>https://andytorresfilms.com/work/nba-finals</loc><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/sb-lvii-open</loc><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/ring-reveal</loc><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/clippers-s24</loc><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/trojans</loc><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/chargers-open</loc><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/nuggets</loc><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/mavs</loc><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/hawks-inverted</loc><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/nets-open</loc><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/mahomes</loc><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/fc-cincy</loc><priority>0.7</priority></url>
+  <url><loc>https://andytorresfilms.com/work/suns-playoffs</loc><priority>0.7</priority></url>
+</urlset>

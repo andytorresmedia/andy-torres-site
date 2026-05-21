@@ -1,0 +1,104 @@
+/* ai-wall.css — "AI labs" dotted radial pulse overlay
+   A thin wall of dots with two slowly-scanning bright radials.
+   Designed to layer over full-bleed media. */
+
+@property --ax { syntax: '<percentage>'; inherits: false; initial-value: 30%; }
+@property --ay { syntax: '<percentage>'; inherits: false; initial-value: 40%; }
+@property --bx { syntax: '<percentage>'; inherits: false; initial-value: 70%; }
+@property --by { syntax: '<percentage>'; inherits: false; initial-value: 60%; }
+@property --cx { syntax: '<percentage>'; inherits: false; initial-value: 50%; }
+@property --cy { syntax: '<percentage>'; inherits: false; initial-value: 50%; }
+@property --pulseAW { syntax: '<percentage>'; inherits: false; initial-value: 26%; }
+@property --pulseAH { syntax: '<percentage>'; inherits: false; initial-value: 22%; }
+@property --pulseBW { syntax: '<percentage>'; inherits: false; initial-value: 22%; }
+@property --pulseBH { syntax: '<percentage>'; inherits: false; initial-value: 18%; }
+
+.ai-wall {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  isolation: isolate;
+  --dot-size: 12px;
+  --dot-base: rgba(244, 239, 230, 0.14);
+  --dot-bright: rgba(255, 232, 210, 0.55);
+}
+
+/* base dim grid — the ONLY layer. The radial mask follows the cursor so the
+   gradient repositions, but no dots ever get *brighter* than the dim base.
+   Smooth transition on --cx/--cy gives a soft trailing effect. */
+.ai-wall .aw-grid {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(circle, var(--dot-base) 0.95px, transparent 1.6px);
+  background-size: var(--dot-size) var(--dot-size);
+  mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(ellipse 70% 50% at var(--cx, 50%) var(--cy, 50%),
+                       rgba(0,0,0,0.95) 0%,
+                       rgba(0,0,0,0.50) 55%,
+                       rgba(0,0,0,0.10) 100%);
+          mask-image: radial-gradient(ellipse 70% 50% at var(--cx, 50%) var(--cy, 50%),
+                       rgba(0,0,0,0.95) 0%,
+                       rgba(0,0,0,0.50) 55%,
+                       rgba(0,0,0,0.10) 100%);
+  transition: mask-image 600ms ease, -webkit-mask-image 600ms ease;
+}
+.ai-wall.aw-interactive .aw-grid {
+  /* smoother trailing for cursor-aware walls (more responsive but still soft) */
+  transition: none;
+}
+
+/* NOTE: aw-cursor / aw-pulse-a / aw-pulse-b layers removed v0.5 — dots never
+   get brighter. The dim base is the only visible layer; the mask just repositions. */
+
+/* cursor spotlight removed v0.5 — see .aw-grid mask above */
+
+/* hairline scan-line that sweeps slowly */
+.ai-wall .aw-scanline {
+  position: absolute; left: 0; right: 0; top: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--accent-live, var(--hot)), transparent);
+  opacity: 0.4;
+  animation: aw-scanline 6s linear infinite;
+}
+@keyframes aw-scanline {
+  0%   { top: -2%;  opacity: 0; }
+  10%  { opacity: 0.55; }
+  90%  { opacity: 0.55; }
+  100% { top: 102%; opacity: 0; }
+}
+
+/* ─── density variants ─── */
+.ai-wall.aw-micro { --dot-size: 6px;  }
+.ai-wall.aw-dense { --dot-size: 10px; }
+.ai-wall.aw-loose { --dot-size: 18px; }
+.ai-wall.aw-tight { --dot-size: 8px;  }
+
+/* stealth — no ambient pulses, base grid dim, cursor leads */
+.ai-wall.aw-stealth .aw-grid { opacity: 0.55; --dot-base: rgba(244,239,230,0.10); }
+.ai-wall.aw-stealth.aw-tinted.aw-interactive .aw-cursor {
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--accent-live) 80%, #fff) 0.95px, transparent 1.6px);
+}
+
+/* ─── intensity variants ─── */
+.ai-wall.aw-soft  { --dot-base: rgba(244,239,230,0.10); --dot-bright: rgba(255,232,210,0.55); }
+.ai-wall.aw-hard  { --dot-base: rgba(244,239,230,0.28); --dot-bright: rgba(255,232,210,1); }
+
+/* ─── used as a HOVER reveal (for client logo cells etc) ─── */
+.ai-wall.aw-hover {
+  opacity: 0;
+  transition: opacity 320ms ease;
+}
+.ai-wall.aw-hover.on { opacity: 1; }
+
+/* ─── tinted by accent (used on dark CTAs and standalone hero modules) ─── */
+.ai-wall.aw-tinted .aw-pulse-a,
+.ai-wall.aw-tinted .aw-pulse-b {
+  background-image: radial-gradient(circle, color-mix(in oklab, var(--accent-live, #ff5b1f) 70%, #fff) 0.95px, transparent 1.6px);
+}
+
+/* graceful fallback for browsers without @property */
+@supports not (animation-timeline: scroll()) {
+  /* still works on modern browsers; the static fallback below is for very old browsers */
+}
+@supports (animation-timeline: scroll()) {
+  /* no-op marker */
+}

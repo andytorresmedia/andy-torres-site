@@ -1,0 +1,110 @@
+/* cursor.css — custom context-aware cursor */
+
+/* hide native cursor on the page-stage (form fields keep native) */
+.page-stage,
+.cmdk-scrim,
+.cs-overlay { cursor: none; }
+.page-stage input,
+.page-stage textarea,
+.page-stage select,
+.cmdk-scrim input { cursor: text; }
+button, [data-cursor], a { cursor: none; }
+
+.cursor {
+  position: fixed;
+  top: 0; left: 0;
+  width: 10px; height: 10px;
+  pointer-events: none;
+  z-index: 99999;
+  border-radius: 50%;
+  background: var(--paper);
+  mix-blend-mode: difference;
+  will-change: transform;
+  transition:
+    width 240ms cubic-bezier(0.16,1,0.3,1),
+    height 240ms cubic-bezier(0.16,1,0.3,1),
+    border-radius 240ms cubic-bezier(0.16,1,0.3,1),
+    background 220ms ease,
+    mix-blend-mode 0ms;
+}
+
+/* expand into a label pill on certain elements */
+.cursor-view,
+.cursor-link {
+  width: auto; height: auto;
+  border-radius: 0;
+  padding: 9px 16px;
+  background: var(--accent-live);
+  mix-blend-mode: normal;
+  border: 1px solid var(--accent-live);
+}
+.cursor-link {
+  background: transparent;
+  border: 1px solid var(--paper);
+}
+.cursor-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.cursor-link .cursor-label { color: var(--paper); }
+
+/* play icon (over videos) */
+.cursor-play {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid var(--paper);
+  mix-blend-mode: normal;
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+}
+.cursor-play::after {
+  content: '';
+  width: 0; height: 0;
+  border-left: 12px solid var(--paper);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  margin-left: 4px;
+}
+
+/* drag (for gallery halves etc.) */
+.cursor-drag {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid var(--paper);
+  mix-blend-mode: normal;
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+}
+.cursor-drag .cursor-label { color: var(--paper); letter-spacing: 0.14em; }
+
+/* small accent dot variant (hover input fields) */
+.cursor-text { display: none; }
+
+/* outer follower ring — trails the dot with slight lag */
+.cursor-ring {
+  position: fixed;
+  top: 0; left: 0;
+  width: 36px; height: 36px;
+  pointer-events: none;
+  z-index: 99998;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  will-change: transform;
+  transition: width 260ms cubic-bezier(0.16,1,0.3,1), height 260ms cubic-bezier(0.16,1,0.3,1), opacity 200ms ease;
+  mix-blend-mode: difference;
+}
+.cursor-ring.over-target {
+  opacity: 0;
+}
+
+/* respect touch / no-mouse devices */
+@media (hover: none) {
+  .cursor, .cursor-ring { display: none; }
+  .page-stage, button, [data-cursor], a { cursor: auto; }
+}

@@ -1,0 +1,104 @@
+/* press.css — Recognition / Press / Awards strip */
+
+.press {
+  padding: 96px var(--safe);
+  background: var(--ink);
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  position: relative;
+}
+
+.press-head {
+  margin-bottom: 56px;
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 32px; align-items: end;
+  position: relative; z-index: 4;
+}
+.press-title {
+  font-family: var(--font-display);
+  font-size: clamp(56px, 8vw, 120px);
+  line-height: 0.88; letter-spacing: -0.012em;
+  margin: 0;
+}
+.press-sub { color: var(--mute); letter-spacing: 0.18em; }
+
+.press-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1.4fr 1fr;
+  gap: 16px;
+  position: relative; z-index: 4;
+}
+
+.press-cell {
+  position: relative;
+  background: var(--ink-2);
+  border: 1px solid var(--hairline);
+  padding: 32px;
+  min-height: 240px;
+  display: flex; flex-direction: column;
+  gap: 16px;
+  text-decoration: none;
+  color: var(--paper);
+  transition: border-color 240ms ease, background 240ms ease;
+}
+.press-cell:hover { border-color: var(--accent-live); }
+
+.press-tag {
+  color: var(--accent-live);
+  letter-spacing: 0.22em;
+  font-size: 10px !important;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.press-tag::before {
+  display: none;
+}
+
+.press-source {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3.4vw, 44px);
+  line-height: 0.95; letter-spacing: -0.005em;
+  margin-top: auto;
+}
+.press-source em { font-style: normal; color: var(--accent-live); }
+.press-source-small {
+  color: var(--bone);
+  font-size: 11px; letter-spacing: 0.10em;
+  line-height: 1.5;
+  margin-top: auto;
+  text-transform: none;
+}
+
+.press-detail {
+  color: var(--mute);
+  letter-spacing: 0.18em;
+  transition: color 200ms ease, transform 200ms ease;
+}
+.press-cell:hover .press-detail {
+  color: var(--accent-live);
+  transform: translateX(4px);
+}
+
+/* awards list */
+.press-projects {
+  list-style: none; padding: 0; margin: 0;
+  display: grid; gap: 8px;
+}
+.press-projects li {
+  display: flex; gap: 10px; align-items: baseline;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+.press-projects li .proj { color: var(--paper); }
+.press-projects li .meta { color: var(--mute); }
+
+.press-num {
+  font-family: var(--font-display);
+  font-size: clamp(96px, 12vw, 200px);
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  color: var(--accent-live);
+}
+
+@media (max-width: 1100px) {
+  .press-grid { grid-template-columns: 1fr; }
+}

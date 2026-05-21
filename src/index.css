@@ -1,13 +1,15 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
+/* index.css — Front Row design-system entry.
+   Imports the ported prototype stylesheets in their original cascade order
+   (styles.css first — it defines the :root tokens), then production overrides.
+   Fonts are loaded via <link> in public/index.html for fastest first paint. */
+@import "./styles/styles.css";
+@import "./styles/ai-wall.css";
+@import "./styles/pages.css";
+@import "./styles/work-page.css";
+@import "./styles/about-contact.css";
+@import "./styles/sequence-transitions.css";
+@import "./styles/case-study.css";
+@import "./styles/press.css";
+@import "./styles/cmdk.css";
+@import "./styles/cursor.css";
+@import "./styles/overrides.css";

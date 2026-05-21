@@ -359,12 +359,18 @@ const POINTER_TILT_Y = 16;
 const DEVICE_TILT_X = 7;
 const DEVICE_TILT_Y = 8;
 const DEVICE_TILT_RANGE = 24;
+const CARD_STABLE_TARGETS = 'button, a, input, textarea, select, [role="button"], [role="link"]';
+const CARD_TOUCH_STABLE_TARGETS = `${CARD_STABLE_TARGETS}, .cs-card-body`;
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const isTouchTiltDevice = () => {
   if (typeof window === 'undefined') return false;
-  return window.matchMedia?.('(pointer: coarse)').matches || navigator.maxTouchPoints > 0 || 'ontouchstart' in window;
+  return (
+    window.matchMedia?.('(pointer: coarse)').matches ||
+    (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0) ||
+    'ontouchstart' in window
+  );
 };
 
 const requestOrientationTilt = async () => {
@@ -381,6 +387,9 @@ const requestOrientationTilt = async () => {
 
   return true;
 };
+
+const isCardStableTarget = (target) => target instanceof Element && Boolean(target.closest(CARD_STABLE_TARGETS));
+const isCardTouchStableTarget = (target) => target instanceof Element && Boolean(target.closest(CARD_TOUCH_STABLE_TARGETS));
 
 function LoadingPhases() {
   const [i, setI] = useState(0);
@@ -494,7 +503,7 @@ export function CaseStudyPage() {
   };
 
   const onCardMouseMove = (e) => {
-    if (e.target instanceof Element && e.target.closest('.cs-card-inset')) {
+    if (isCardStableTarget(e.target)) {
       easeCardTiltToRest();
       return;
     }
@@ -512,7 +521,7 @@ export function CaseStudyPage() {
   const onCardTouchStart = (e) => {
     touchInteractingRef.current = true;
 
-    if (e.target instanceof Element && e.target.closest('.cs-card-inset')) {
+    if (isCardTouchStableTarget(e.target)) {
       touchDragRef.current = null;
       easeCardTiltToRest();
       return;
@@ -525,7 +534,7 @@ export function CaseStudyPage() {
   const onCardTouchMove = (e) => {
     const touch = e.touches[0];
     if (!touch || !touchDragRef.current) {
-      if (e.target instanceof Element && e.target.closest('.cs-card-inset')) easeCardTiltToRest();
+      if (isCardTouchStableTarget(e.target)) easeCardTiltToRest();
       return;
     }
 

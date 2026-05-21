@@ -639,6 +639,7 @@
   overflow-y: auto;
   padding: 24px 28px 28px;
   scrollbar-width: thin;
+  overscroll-behavior: contain;
 }
 .cs-card-body::-webkit-scrollbar { width: 4px; }
 .cs-card-body::-webkit-scrollbar-thumb { background: var(--mute-2); }
@@ -734,6 +735,7 @@
   overflow: hidden;
   border: 1px solid var(--hairline);
   min-height: 280px;
+  touch-action: pan-y;
 }
 .cs-gallery-bg {
   position: absolute; inset: 0;
@@ -794,31 +796,52 @@
 .cs-gallery-caption .count { color: var(--accent-live); }
 .cs-gallery-half {
   position: absolute; top: 0; bottom: 0;
-  width: 40%;
+  width: 50%;
   cursor: pointer;
   display: flex; align-items: center;
-  z-index: 3;
+  z-index: 6;
   background: transparent;
   border: 0;
   transition: background 200ms ease;
 }
-.cs-gallery-half.left  { left: 0;  justify-content: flex-start; padding-left: 16px; }
-.cs-gallery-half.right { right: 0; justify-content: flex-end;   padding-right: 16px; }
-.cs-gallery-half:hover { background: linear-gradient(to right, rgba(0,0,0,0.4), transparent); }
-.cs-gallery-half.right:hover { background: linear-gradient(to left, rgba(0,0,0,0.4), transparent); }
+.cs-gallery-half.left  { left: 0;  justify-content: flex-start; padding: 0 0 0 14px; }
+.cs-gallery-half.right { right: 0; justify-content: flex-end;   padding: 0 14px 0 0; }
+.cs-gallery-half.left { background: linear-gradient(to right, rgba(0,0,0,0.18), transparent 48%); }
+.cs-gallery-half.right { background: linear-gradient(to left, rgba(0,0,0,0.18), transparent 48%); }
+.cs-gallery-half.left:hover { background: linear-gradient(to right, rgba(255,91,31,0.16), rgba(0,0,0,0.24) 18%, transparent 56%); }
+.cs-gallery-half.right:hover { background: linear-gradient(to left, rgba(255,91,31,0.16), rgba(0,0,0,0.24) 18%, transparent 56%); }
 .cs-gallery-half .arr {
-  width: 40px; height: 40px;
-  background: rgba(0,0,0,0.55);
+  min-width: 58px; height: 34px;
+  padding: 0 10px;
+  background: rgba(0,0,0,0.5);
   backdrop-filter: blur(6px);
-  border: 1px solid var(--hairline);
+  border: 1px solid rgba(255,91,31,0.34);
   display: flex; align-items: center; justify-content: center;
+  gap: 8px;
   color: var(--paper);
-  font-family: var(--font-display); font-size: 20px;
-  transform: translateX(-6px);
-  opacity: 0; transition: opacity 200ms ease, transform 200ms ease;
+  font-family: var(--font-mono);
+  transform: translateX(-2px);
+  opacity: 0.58;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03), 0 0 24px rgba(255,91,31,0.06);
+  transition: opacity 180ms ease, transform 180ms ease, border-color 180ms ease, background 180ms ease;
 }
-.cs-gallery-half.right .arr { transform: translateX(6px); }
-.cs-gallery-half:hover .arr { opacity: 1; transform: translateX(0); }
+.cs-gallery-half.right .arr { transform: translateX(2px); }
+.cs-gallery-half .arr-glyph {
+  font-size: 17px;
+  line-height: 1;
+  color: var(--accent-live);
+}
+.cs-gallery-half .arr-kicker {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.cs-gallery-half:hover .arr {
+  opacity: 1;
+  transform: translateX(0);
+  background: rgba(0,0,0,0.68);
+  border-color: rgba(255,91,31,0.76);
+}
 
 .cs-gallery-thumbs {
   display: flex; gap: 6px;
@@ -834,10 +857,10 @@
   overflow: hidden;
   position: relative;
   opacity: 0.55;
-  transition: opacity 200ms ease, border-color 200ms ease;
+  transition: opacity 200ms ease, border-color 200ms ease, transform 200ms ease;
 }
 .cs-gallery-thumb img { width: 100%; height: 100%; object-fit: cover; }
-.cs-gallery-thumb:hover { opacity: 0.85; }
+.cs-gallery-thumb:hover { opacity: 0.85; transform: translateY(-1px); }
 .cs-gallery-thumb.active { opacity: 1; border-color: var(--accent-live); }
 
 /* ─── R&D TAB ─── */

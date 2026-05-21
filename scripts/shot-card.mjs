@@ -34,7 +34,8 @@ await page.screenshot({ path: `${OUT}/slab-rest.png` }); // straight-facing at r
 // CLICK RELIABILITY: click each tab by its word; confirm the tab's content renders.
 const checks = [['Gallery', '.cs-gallery'], ['R&D', '.cs-rd-grid'], ['About', '.cs-about-row']];
 const tabResult = {};
-const galleryResult = { progressRemoved: false, wheelChangedFrame: false };
+const galleryResult = { progressRemoved: false, wheelChangedFrame: false, sideClickChangedFrame: false, thumbChangedFrame: false };
+const contentResult = { aboutWheelScrollsFromTitle: false };
 for (const [name, sel] of checks) {
   try {
     await page.locator('.cs-card-tabs .cs-tab', { hasText: name }).click({ timeout: 5000 });
@@ -48,6 +49,28 @@ for (const [name, sel] of checks) {
       await page.waitForTimeout(450);
       const after = await page.locator('.cs-gallery-caption .count').first().innerText();
       galleryResult.wheelChangedFrame = before !== after;
+
+      const rightBox = await page.locator('.cs-gallery-half.right').boundingBox({ timeout: 5000 });
+      if (!rightBox) throw new Error('gallery right hit zone has no bounding box');
+      await page.mouse.click(rightBox.x + rightBox.width * 0.72, rightBox.y + rightBox.height / 2);
+      await page.waitForTimeout(450);
+      const afterSideClick = await page.locator('.cs-gallery-caption .count').first().innerText();
+      galleryResult.sideClickChangedFrame = afterSideClick !== after;
+
+      await page.locator('.cs-gallery-thumb').nth(3).click({ timeout: 5000 });
+      await page.waitForTimeout(450);
+      const activeThumb = await page.locator('.cs-gallery-thumb').evaluateAll((thumbs) =>
+        thumbs.findIndex((thumb) => thumb.classList.contains('active')),
+      );
+      galleryResult.thumbChangedFrame = activeThumb === 3;
+    }
+    if (name === 'About') {
+      const body = page.locator('.cs-card-body').first();
+      await body.evaluate((el) => { el.scrollTop = 0; });
+      await page.locator('.cs-card-title').hover();
+      await page.mouse.wheel(0, 700);
+      await page.waitForTimeout(250);
+      contentResult.aboutWheelScrollsFromTitle = await body.evaluate((el) => el.scrollTop > 0);
     }
   } catch (e) {
     tabResult[name] = false;
@@ -91,10 +114,12 @@ const benign = /play\(\)|AbortError|NotAllowedError|favicon|ERR_|media resource|
 const meaningful = errors.filter((e) => !benign.test(e));
 const tabsPass = Object.values(tabResult).every(Boolean);
 const galleryPass = Object.values(galleryResult).every(Boolean);
-const overallPass = tabsPass && galleryPass && closeXPass && meaningful.length === 0;
+const contentPass = Object.values(contentResult).every(Boolean);
+const overallPass = tabsPass && galleryPass && contentPass && closeXPass && meaningful.length === 0;
 
 console.log('tab clicks open their content:', JSON.stringify(tabResult), tabsPass ? 'PASS' : 'FAIL');
 console.log('gallery manual controls:', JSON.stringify(galleryResult), galleryPass ? 'PASS' : 'FAIL');
+console.log('card content scrolling:', JSON.stringify(contentResult), contentPass ? 'PASS' : 'FAIL');
 console.log('card close x:', closeXPass ? 'PASS' : 'FAIL');
 console.log('console errors:', JSON.stringify(meaningful, null, 2));
 console.log(overallPass ? 'PASS clean' : 'FAIL issues');

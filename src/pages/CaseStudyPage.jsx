@@ -192,6 +192,7 @@ function GalleryTab({ project }) {
   const items = project.gallery || [];
   const [idx, setIdx] = useState(0);
   const [smashKey, setSmashKey] = useState(0);
+  const stageRef = useRef(null);
   const wheelStateRef = useRef({ delta: 0, locked: false, timeout: null });
 
   useEffect(() => {
@@ -234,6 +235,9 @@ function GalleryTab({ project }) {
     const primaryDelta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
     if (Math.abs(primaryDelta) < 2) return;
 
+    e.preventDefault();
+    e.stopPropagation();
+
     const state = wheelStateRef.current;
     if (state.locked) return;
 
@@ -257,21 +261,58 @@ function GalleryTab({ project }) {
       state.timeout = null;
     }, 240);
   };
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return undefined;
+
+    stage.addEventListener('wheel', onGalleryWheel, { passive: false });
+    return () => stage.removeEventListener('wheel', onGalleryWheel);
+  });
+  const onPointerAction = (e, action) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    action();
+  };
+  const onKeyboardAction = (e, action) => {
+    e.stopPropagation();
+    if (e.detail === 0) action();
+  };
   const cur = items[idx] || {};
 
   return (
     <div className="cs-gallery">
-      <div className="cs-gallery-stage" style={{ '--bg-img': `url(${asset(cur.src)})` }} onWheel={onGalleryWheel}>
+      <div ref={stageRef} className="cs-gallery-stage" style={{ '--bg-img': `url(${asset(cur.src)})` }}>
         <div className="cs-gallery-bg" />
         <div key={smashKey} className="cs-gallery-frame">
           <img src={asset(cur.src)} alt={cur.caption} />
           <div className="cs-gallery-flash" />
         </div>
-        <button className="cs-gallery-half left" onClick={prev} aria-label="Previous" data-cursor="drag" data-cursor-label="Prev">
-          <span className="arr">←</span>
+        <button
+          className="cs-gallery-half left"
+          onPointerDown={(e) => onPointerAction(e, prev)}
+          onClick={(e) => onKeyboardAction(e, prev)}
+          aria-label="Previous"
+          data-cursor="drag"
+          data-cursor-label="Prev"
+        >
+          <span className="arr">
+            <span className="arr-glyph">&larr;</span>
+            <span className="arr-kicker">Prev</span>
+          </span>
         </button>
-        <button className="cs-gallery-half right" onClick={next} aria-label="Next" data-cursor="drag" data-cursor-label="Next">
-          <span className="arr">→</span>
+        <button
+          className="cs-gallery-half right"
+          onPointerDown={(e) => onPointerAction(e, next)}
+          onClick={(e) => onKeyboardAction(e, next)}
+          aria-label="Next"
+          data-cursor="drag"
+          data-cursor-label="Next"
+        >
+          <span className="arr">
+            <span className="arr-kicker">Next</span>
+            <span className="arr-glyph">&rarr;</span>
+          </span>
         </button>
         <div className="cs-gallery-caption">
           <span className="cap-tag mono">FRAME</span>
@@ -290,9 +331,8 @@ function GalleryTab({ project }) {
           <button
             key={i}
             className={`cs-gallery-thumb ${i === idx ? 'active' : ''}`}
-            onClick={() => {
-              showFrame(i);
-            }}
+            onPointerDown={(e) => onPointerAction(e, () => showFrame(i))}
+            onClick={(e) => onKeyboardAction(e, () => showFrame(i))}
             aria-label={`Show frame ${i + 1}`}
           >
             <img src={asset(it.src)} alt="" />
@@ -461,6 +501,8 @@ export function CaseStudyPage() {
   const [tab, setTab] = useState('about');
   const videoRef = useRef(null);
   const cardTabsRef = useRef(null);
+  const cardInsetRef = useRef(null);
+  const cardBodyRef = useRef(null);
   const cardCloseRef = useRef(null);
   const cardHoverRectRef = useRef(null);
   const orientationBaseRef = useRef(null);
@@ -538,6 +580,29 @@ export function CaseStudyPage() {
     window.addEventListener('deviceorientation', onOrientation, true);
     return () => window.removeEventListener('deviceorientation', onOrientation, true);
   }, [detailsOpen, gyroTiltActive, rxRaw, ryRaw]);
+
+  useEffect(() => {
+    if (!detailsOpen) return undefined;
+    const inset = cardInsetRef.current;
+    const body = cardBodyRef.current;
+    if (!inset || !body) return undefined;
+
+    const onContentWheel = (event) => {
+      if (!(event.target instanceof Element)) return;
+      if (event.target.closest('.cs-gallery-stage, .cs-gallery-thumbs')) return;
+      if (body.scrollHeight <= body.clientHeight + 1) return;
+
+      const primaryDelta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+      if (Math.abs(primaryDelta) < 1) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      body.scrollTop += primaryDelta;
+    };
+
+    inset.addEventListener('wheel', onContentWheel, { passive: false });
+    return () => inset.removeEventListener('wheel', onContentWheel);
+  }, [detailsOpen, tab]);
 
   useEffect(() => {
     if (muxId || !videoRef.current) return undefined;
@@ -633,6 +698,11 @@ export function CaseStudyPage() {
     cardHoverRectRef.current = readCardLayoutRect(e.currentTarget);
   };
   const onCardMouseMove = (e) => {
+    if (e.target instanceof Element && e.target.closest('.cs-card-inset')) {
+      easeCardTiltToRest();
+      return;
+    }
+
     const rect = cardHoverRectRef.current || readCardLayoutRect(e.currentTarget);
     const scale = isCardStableTarget(e.target) ? CONTROL_TILT_SCALE : 1;
     setCardTiltFromPoint(e.clientX, e.clientY, rect, scale);
@@ -778,7 +848,7 @@ export function CaseStudyPage() {
                 <span className="slab-wall right" aria-hidden="true" />
                 <span className="slab-wall bottom" aria-hidden="true" />
                 <span className="slab-wall left" aria-hidden="true" />
-                <div className="cs-card-inset">
+                <div className="cs-card-inset" ref={cardInsetRef}>
                 <div className="cs-card-grade">
                   <span className="grade-l mono">[FR-{(project.id || '').toUpperCase()}] · CASE FILE</span>
                   <span className="grade-c mono">MASTER FILE</span>
@@ -804,7 +874,7 @@ export function CaseStudyPage() {
                     R&amp;D<span className="count">{project.rd.length}</span>
                   </button>
                 </div>
-                <div className="cs-card-body">
+                <div className="cs-card-body" ref={cardBodyRef}>
                   {tab === 'about' && <AboutTab project={project} />}
                   {tab === 'gallery' && <GalleryTab project={project} />}
                   {tab === 'rd' && <RDTab project={project} />}

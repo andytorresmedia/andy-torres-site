@@ -6,6 +6,7 @@
 // flash on each switch, side-rail jump nav, accent progress bar.
 
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useScroll, useTransform, useMotionValueEvent, motion } from 'motion/react';
 import { AIWall } from '../components/AIWall';
 import { asset } from '../lib/assets';
@@ -59,10 +60,12 @@ export function StickySequence() {
   const wrapRef = useRef(null);
   const whiteRef = useRef(null);
   const pageScroll = usePageScroll();
+  const location = useLocation();
   const [active, setActive] = useState(0);
   const [prevActive, setPrevActive] = useState(0);
   const [switchKey, setSwitchKey] = useState(0);
   const activeRef = useRef(0);
+  const restoredScrollRef = useRef(false);
   const openProject = useProjectOpener();
 
   const { scrollYProgress } = useScroll({
@@ -100,6 +103,17 @@ export function StickySequence() {
     return () => clearTimeout(t);
   }, [active]);
 
+  useEffect(() => {
+    const top = location.state?.restoreHomeScrollTop;
+    const container = pageScroll?.current;
+    if (typeof top !== 'number' || !container || restoredScrollRef.current) return;
+
+    restoredScrollRef.current = true;
+    requestAnimationFrame(() => {
+      container.scrollTo({ top, behavior: 'auto' });
+    });
+  }, [location.state, pageScroll]);
+
   const jumpTo = (i) => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -113,6 +127,19 @@ export function StickySequence() {
   };
 
   const cur = FEATURED[active];
+
+  const openFeaturedProject = () => {
+    const returnTop = pageScroll?.current?.scrollTop || 0;
+    openProject(cur.id, {
+      state: {
+        lingerLoading: true,
+        returnTo: {
+          pathname: '/',
+          state: { restoreHomeScrollTop: returnTop },
+        },
+      },
+    });
+  };
 
   return (
     <div
@@ -167,7 +194,7 @@ export function StickySequence() {
                   {cur.sequenceTag} &nbsp;—&nbsp; {cur.role}
                 </div>
                 <div>
-                  <button className="seq-view" onClick={() => openProject(cur.id, { state: { lingerLoading: true } })} type="button">
+                  <button className="seq-view" onClick={openFeaturedProject} type="button">
                     View Project <span className="arrow">→</span>
                   </button>
                 </div>

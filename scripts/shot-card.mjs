@@ -1,5 +1,5 @@
-// scripts/shot-card.mjs — open the case-study "project file" slab, screenshot it,
-// and verify the tabs are clickable by their word (the 3D hit-area bug).
+// scripts/shot-card.mjs - open the case-study "project file" slab, screenshot it,
+// and verify the interaction paths that have regressed during the 3D-card work.
 //   node scripts/shot-card.mjs [baseURL]   (default http://localhost:4173)
 
 import { chromium } from 'playwright';
@@ -11,10 +11,12 @@ mkdirSync(OUT, { recursive: true });
 
 const CACHED_CHROME =
   process.env.PLAYWRIGHT_CHROME ||
-  `${process.env.HOME}/.cache/ms-playwright/chromium_headless_shell-1217/chrome-headless-shell-linux64/chrome-headless-shell`;
+  (process.env.HOME
+    ? `${process.env.HOME}/.cache/ms-playwright/chromium_headless_shell-1217/chrome-headless-shell-linux64/chrome-headless-shell`
+    : '');
 
 const browser = await chromium.launch({
-  executablePath: existsSync(CACHED_CHROME) ? CACHED_CHROME : undefined,
+  executablePath: CACHED_CHROME && existsSync(CACHED_CHROME) ? CACHED_CHROME : undefined,
   args: ['--autoplay-policy=no-user-gesture-required'],
 });
 const errors = [];
@@ -29,26 +31,51 @@ await page.getByText('Open Project File').click({ timeout: 8000 }).catch((e) => 
 await page.waitForTimeout(1300); // entrance + light sweep
 await page.screenshot({ path: `${OUT}/slab-rest.png` }); // straight-facing at rest
 
-// CLICK RELIABILITY: click each tab by its WORD; confirm the tab's content renders.
+// CLICK RELIABILITY: click each tab by its word; confirm the tab's content renders.
 const checks = [['Gallery', '.cs-gallery'], ['R&D', '.cs-rd-grid'], ['About', '.cs-about-row']];
 const tabResult = {};
+const galleryResult = { progressRemoved: false, wheelChangedFrame: false };
 for (const [name, sel] of checks) {
   try {
     await page.locator('.cs-card-tabs .cs-tab', { hasText: name }).click({ timeout: 5000 });
     await page.waitForTimeout(450);
     tabResult[name] = await page.locator(sel).first().isVisible();
-  } catch (e) { tabResult[name] = false; errors.push(`TAB ${name}: ` + e.message); }
+    if (name === 'Gallery') {
+      galleryResult.progressRemoved = await page.locator('.cs-gallery-stage > .progress').count() === 0;
+      const before = await page.locator('.cs-gallery-caption .count').first().innerText();
+      await page.locator('.cs-gallery-stage').hover();
+      await page.mouse.wheel(0, 700);
+      await page.waitForTimeout(450);
+      const after = await page.locator('.cs-gallery-caption .count').first().innerText();
+      galleryResult.wheelChangedFrame = before !== after;
+    }
+  } catch (e) {
+    tabResult[name] = false;
+    errors.push(`TAB ${name}: ` + e.message);
+  }
 }
 await page.screenshot({ path: `${OUT}/slab-tabs.png` });
 
-// tilt to show the thickness on the edges
-// Force a representative tilt for the screenshot only — headless synthetic
-// mousemove doesn't reliably drive React onMouseMove, but a real cursor does.
-// This mirrors what a ~18deg hover-turn looks like in a real browser.
+let closeXPass = false;
+try {
+  await page.locator('.cs-card-close').click({ timeout: 5000 });
+  await page.waitForTimeout(350);
+  closeXPass = await page.locator('.cs-card').count() === 0;
+  if (!closeXPass) errors.push('CLOSE X: card stayed open');
+} catch (e) {
+  errors.push('CLOSE X: ' + e.message);
+}
+
+if (closeXPass) {
+  await page.getByText('Open Project File').click({ timeout: 8000 }).catch((e) => errors.push('REOPEN: ' + e.message));
+  await page.waitForTimeout(1000);
+}
+
+// Tilt to show the thickness on the edges.
+// Force a representative tilt for the screenshot only: headless synthetic
+// mousemove does not reliably drive React onMouseMove, but a real cursor does.
 await page.locator('.cs-card').evaluate((el) => {
   el.style.transform = 'perspective(1600px) rotateX(9deg) rotateY(-18deg)';
-  el.style.setProperty('--mx', '22%');
-  el.style.setProperty('--my', '16%');
 });
 await page.waitForTimeout(250);
 await page.screenshot({ path: `${OUT}/slab-tilt.png` });
@@ -57,7 +84,12 @@ await browser.close();
 const benign = /play\(\)|AbortError|NotAllowedError|favicon|ERR_|media resource|Autoplay/i;
 const meaningful = errors.filter((e) => !benign.test(e));
 const tabsPass = Object.values(tabResult).every(Boolean);
-console.log('tab clicks open their content:', JSON.stringify(tabResult), tabsPass ? '✅' : '❌');
+const galleryPass = Object.values(galleryResult).every(Boolean);
+const overallPass = tabsPass && galleryPass && closeXPass && meaningful.length === 0;
+
+console.log('tab clicks open their content:', JSON.stringify(tabResult), tabsPass ? 'PASS' : 'FAIL');
+console.log('gallery manual controls:', JSON.stringify(galleryResult), galleryPass ? 'PASS' : 'FAIL');
+console.log('card close x:', closeXPass ? 'PASS' : 'FAIL');
 console.log('console errors:', JSON.stringify(meaningful, null, 2));
-console.log(meaningful.length || !tabsPass ? '❌ issues' : '✅ clean');
-process.exit(meaningful.length || !tabsPass ? 1 : 0);
+console.log(overallPass ? 'PASS clean' : 'FAIL issues');
+process.exit(overallPass ? 0 : 1);

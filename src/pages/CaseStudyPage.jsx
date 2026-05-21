@@ -2,9 +2,9 @@
 // a playback ID is set, else the local mp4 + custom HUD controls), agentic HUD
 // chrome, and a floating graded "case file" card with real 3D depth: a hand-rolled
 // tilt smoothed by Framer Motion springs (inertia), with the Z-layered children
-// from case-study.css. Tabs: About / Gallery (smash-cut + keyboard) / R&D (autoplay).
+// from case-study.css. Tabs: About / Gallery (manual wheel/click + keyboard) / R&D (autoplay).
 
-import { useEffect, useMemo, useRef, useState, Fragment } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from 'react';
 import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { motion, useMotionValue, useSpring, useMotionTemplate } from 'motion/react';
 import MuxPlayer from '@mux/mux-player-react';
@@ -191,65 +191,78 @@ function AboutTab({ project }) {
 function GalleryTab({ project }) {
   const items = project.gallery || [];
   const [idx, setIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [smashKey, setSmashKey] = useState(0);
+  const wheelStateRef = useRef({ delta: 0, locked: false, timeout: null });
 
   useEffect(() => {
-    if (paused) return undefined;
-    const STEP_MS = 60;
-    const TOTAL_MS = 6000;
-    const t = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) {
-          setIdx((i) => (i + 1) % items.length);
-          setSmashKey((k) => k + 1);
-          return 0;
-        }
-        return p + (STEP_MS / TOTAL_MS) * 100;
-      });
-    }, STEP_MS);
-    return () => clearInterval(t);
-  }, [paused, items.length]);
-
-  useEffect(() => {
-    setProgress(0);
-  }, [idx]);
+    const wheelState = wheelStateRef.current;
+    return () => {
+      if (wheelState.timeout) clearTimeout(wheelState.timeout);
+    };
+  }, []);
 
   useEffect(() => {
     const onKey = (e) => {
+      if (!items.length) return;
       if (e.key === 'ArrowLeft') {
         setIdx((i) => (i - 1 + items.length) % items.length);
         setSmashKey((k) => k + 1);
-        setProgress(0);
       }
       if (e.key === 'ArrowRight') {
         setIdx((i) => (i + 1) % items.length);
         setSmashKey((k) => k + 1);
-        setProgress(0);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [items.length]);
 
-  const prev = () => {
-    setIdx((i) => (i - 1 + items.length) % items.length);
+  const showFrame = (updater) => {
+    if (!items.length) return;
+    setIdx((i) => (typeof updater === 'function' ? updater(i) : updater));
     setSmashKey((k) => k + 1);
-    setProgress(0);
+  };
+  const prev = () => {
+    showFrame((i) => (i - 1 + items.length) % items.length);
   };
   const next = () => {
-    setIdx((i) => (i + 1) % items.length);
-    setSmashKey((k) => k + 1);
-    setProgress(0);
+    showFrame((i) => (i + 1) % items.length);
+  };
+  const onGalleryWheel = (e) => {
+    if (items.length < 2) return;
+
+    const primaryDelta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+    if (Math.abs(primaryDelta) < 2) return;
+
+    const state = wheelStateRef.current;
+    if (state.locked) return;
+
+    state.delta += primaryDelta;
+    if (Math.abs(state.delta) < 48) {
+      if (state.timeout) clearTimeout(state.timeout);
+      state.timeout = setTimeout(() => {
+        state.delta = 0;
+        state.timeout = null;
+      }, 180);
+      return;
+    }
+
+    if (state.timeout) clearTimeout(state.timeout);
+    if (state.delta > 0) next();
+    else prev();
+    state.delta = 0;
+    state.locked = true;
+    state.timeout = setTimeout(() => {
+      state.locked = false;
+      state.timeout = null;
+    }, 240);
   };
   const cur = items[idx] || {};
 
   return (
-    <div className="cs-gallery" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-      <div className="cs-gallery-stage" style={{ '--bg-img': `url(${asset(cur.src)})` }}>
+    <div className="cs-gallery">
+      <div className="cs-gallery-stage" style={{ '--bg-img': `url(${asset(cur.src)})` }} onWheel={onGalleryWheel}>
         <div className="cs-gallery-bg" />
-        <div className="progress" style={{ width: `${progress}%` }} />
         <div key={smashKey} className="cs-gallery-frame">
           <img src={asset(cur.src)} alt={cur.caption} />
           <div className="cs-gallery-flash" />
@@ -278,9 +291,7 @@ function GalleryTab({ project }) {
             key={i}
             className={`cs-gallery-thumb ${i === idx ? 'active' : ''}`}
             onClick={() => {
-              setIdx(i);
-              setSmashKey((k) => k + 1);
-              setProgress(0);
+              showFrame(i);
             }}
             aria-label={`Show frame ${i + 1}`}
           >
@@ -336,7 +347,7 @@ function RDTab({ project }) {
     <div>
       <p style={{ color: 'var(--bone)', fontSize: 14, lineHeight: 1.55, margin: '0 0 24px', maxWidth: '64ch' }}>
         Selected R&D and behind-the-scenes from the build — material tests, previs passes, look-dev, screen recordings
-        from the rig. All clips autoplay; hover the panel to pause the gallery progress.
+        from the rig. Gallery frames advance by click, wheel, or keyboard.
       </p>
       <div className="cs-rd-grid">
         {items.map((it, i) => (
@@ -450,6 +461,7 @@ export function CaseStudyPage() {
   const [tab, setTab] = useState('about');
   const videoRef = useRef(null);
   const cardTabsRef = useRef(null);
+  const cardCloseRef = useRef(null);
   const cardHoverRectRef = useRef(null);
   const orientationBaseRef = useRef(null);
   const touchDragRef = useRef(null);
@@ -465,6 +477,15 @@ export function CaseStudyPage() {
   // property didn't survive the backdrop-filtered wrapper).
   const cardTransform = useMotionTemplate`perspective(1600px) rotateX(${rx}deg) rotateY(${ry}deg)`;
 
+  const closeRoute = useCallback(() => {
+    const returnTo = location.state?.returnTo;
+    if (returnTo?.pathname) {
+      navigate(returnTo.pathname, { state: returnTo.state });
+      return;
+    }
+    navigate('/work');
+  }, [location.state, navigate]);
+
   useEffect(() => {
     setLoading(true);
     const t = setTimeout(() => setLoading(false), loadingDelay);
@@ -472,15 +493,20 @@ export function CaseStudyPage() {
   }, [slug, loadingDelay]);
 
   useEffect(() => {
+    document.body.classList.add('case-study-active');
+    return () => document.body.classList.remove('case-study-active');
+  }, []);
+
+  useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') {
         if (detailsOpen) setDetailsOpen(false);
-        else navigate('/work');
+        else closeRoute();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [detailsOpen, navigate]);
+  }, [detailsOpen, closeRoute]);
 
   useEffect(() => {
     if (detailsOpen) return;
@@ -542,12 +568,29 @@ export function CaseStudyPage() {
 
   const onCardPointerDownCapture = (e) => {
     if (e.button !== undefined && e.button !== 0) return;
-    const tabsEl = cardTabsRef.current;
-    if (!tabsEl) return;
-
     const cardRect = readCardLayoutRect(e.currentTarget);
     const x = e.clientX - cardRect.left;
     const y = e.clientY - cardRect.top;
+
+    const closeEl = cardCloseRef.current;
+    if (closeEl) {
+      const closeSlack = 12;
+      if (
+        x >= closeEl.offsetLeft - closeSlack &&
+        x <= closeEl.offsetLeft + closeEl.offsetWidth + closeSlack &&
+        y >= closeEl.offsetTop - closeSlack &&
+        y <= closeEl.offsetTop + closeEl.offsetHeight + closeSlack
+      ) {
+        setDetailsOpen(false);
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    }
+
+    const tabsEl = cardTabsRef.current;
+    if (!tabsEl) return;
+
     const left = tabsEl.offsetLeft;
     const top = tabsEl.offsetTop;
     const width = tabsEl.offsetWidth;
@@ -656,7 +699,7 @@ export function CaseStudyPage() {
               </div>
             </div>
             <div className="cs-top-r">
-              <button className="cs-close" onClick={() => navigate('/work')}>
+              <button className="cs-close" onClick={closeRoute}>
                 Close ✕
               </button>
             </div>
@@ -765,7 +808,18 @@ export function CaseStudyPage() {
                 <span className="card-corner tr" />
                 <span className="card-corner bl" />
                 <span className="card-corner br" />
-                <button className="cs-card-close" onClick={() => setDetailsOpen(false)} aria-label="Close file">
+                <button
+                  ref={cardCloseRef}
+                  className="cs-card-close"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDetailsOpen(false);
+                  }}
+                  onClick={() => setDetailsOpen(false)}
+                  aria-label="Close file"
+                  type="button"
+                >
                   ✕
                 </button>
               </motion.div>

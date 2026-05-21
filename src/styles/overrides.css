@@ -65,6 +65,13 @@ select { cursor: text; }
   pointer-events: none;
 }
 
+/* The case-study route is its own full-screen experience. Let its close controls
+   receive clicks where the persistent nav visually overlaps the top bar. */
+body.case-study-active .nav,
+body.case-study-active .nav > * {
+  pointer-events: none;
+}
+
 /* The case study is a full-screen "overlay" in the prototype (position: fixed).
    As a route it must ride the page-slide instead of escaping to the viewport, so
    contain it to the sliding panel. */

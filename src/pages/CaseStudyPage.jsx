@@ -364,6 +364,7 @@ const CARD_TILT_SPRING = { stiffness: 160, damping: 24, mass: 0.7 };
 const CARD_STABLE_TARGETS = 'button, a, input, textarea, select, [role="button"], [role="link"]';
 const CARD_FREE_TILT_TARGETS = '.cs-gallery-half';
 const CARD_TOUCH_STABLE_TARGETS = `${CARD_STABLE_TARGETS}, .cs-card-body`;
+const CARD_TABS = ['about', 'gallery', 'rd'];
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -441,10 +442,13 @@ export function CaseStudyPage() {
 
   const [loading, setLoading] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
   const [gyroTiltActive, setGyroTiltActive] = useState(false);
   const [tab, setTab] = useState('about');
   const videoRef = useRef(null);
+  const cardTabsRef = useRef(null);
   const cardHoverRectRef = useRef(null);
+  const fileLoadingTimerRef = useRef(null);
   const orientationBaseRef = useRef(null);
   const touchDragRef = useRef(null);
   const touchInteractingRef = useRef(false);
@@ -478,6 +482,11 @@ export function CaseStudyPage() {
 
   useEffect(() => {
     if (detailsOpen) return;
+    setDetailsLoading(false);
+    if (fileLoadingTimerRef.current) {
+      clearTimeout(fileLoadingTimerRef.current);
+      fileLoadingTimerRef.current = null;
+    }
     setGyroTiltActive(false);
     orientationBaseRef.current = null;
     cardHoverRectRef.current = null;
@@ -486,6 +495,10 @@ export function CaseStudyPage() {
     rxRaw.set(REST_RX);
     ryRaw.set(REST_RY);
   }, [detailsOpen, gyroTiltActive, rxRaw, ryRaw]);
+
+  useEffect(() => () => {
+    if (fileLoadingTimerRef.current) clearTimeout(fileLoadingTimerRef.current);
+  }, []);
 
   useEffect(() => {
     if (!detailsOpen || !gyroTiltActive) return undefined;
@@ -527,11 +540,39 @@ export function CaseStudyPage() {
 
     orientationBaseRef.current = null;
     setGyroTiltActive(false);
+    setDetailsLoading(true);
     setDetailsOpen(true);
+    if (fileLoadingTimerRef.current) clearTimeout(fileLoadingTimerRef.current);
+    fileLoadingTimerRef.current = setTimeout(() => {
+      setDetailsLoading(false);
+      fileLoadingTimerRef.current = null;
+    }, 950);
 
     if (isTouchTiltDevice()) {
       setGyroTiltActive(await requestOrientationTilt());
     }
+  };
+
+  const onCardPointerDownCapture = (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    const tabsEl = cardTabsRef.current;
+    if (!tabsEl) return;
+
+    const cardRect = readCardLayoutRect(e.currentTarget);
+    const x = e.clientX - cardRect.left;
+    const y = e.clientY - cardRect.top;
+    const left = tabsEl.offsetLeft;
+    const top = tabsEl.offsetTop;
+    const width = tabsEl.offsetWidth;
+    const height = tabsEl.offsetHeight;
+    const verticalSlack = 18;
+
+    if (x < left || x > left + width || y < top - verticalSlack || y > top + height + verticalSlack) return;
+
+    const index = Math.min(CARD_TABS.length - 1, Math.max(0, Math.floor(((x - left) / width) * CARD_TABS.length)));
+    setTab(CARD_TABS[index]);
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   const onCardMouseEnter = (e) => {
@@ -662,8 +703,26 @@ export function CaseStudyPage() {
                 if (e.target === e.currentTarget) setDetailsOpen(false);
               }}
             >
+              {detailsLoading ? (
+                <div className="cs-file-loading">
+                  <div className="loading-logo">
+                    <img className="loading-mark" src={asset('assets/at-mark.png')} alt="" />
+                    <span className="loading-word">
+                      FRONT&nbsp;ROW<span className="dot">.</span>
+                    </span>
+                  </div>
+                  <div className="dots">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  <div className="label">Loading project file · {project.title}</div>
+                  <LoadingPhases />
+                </div>
+              ) : (
               <div
                 className="cs-card-float"
+                onPointerDownCapture={onCardPointerDownCapture}
                 onMouseEnter={onCardMouseEnter}
                 onMouseMove={onCardMouseMove}
                 onMouseLeave={onCardMouseLeave}
@@ -700,7 +759,7 @@ export function CaseStudyPage() {
                     {project.client} · {project.sequenceTag || project.tags[0]}
                   </div>
                 </div>
-                <div className="cs-card-tabs">
+                <div className="cs-card-tabs" ref={cardTabsRef}>
                   <button className={`cs-tab ${tab === 'about' ? 'active' : ''}`} onClick={() => setTab('about')}>
                     About
                   </button>
@@ -741,6 +800,7 @@ export function CaseStudyPage() {
                 </button>
               </motion.div>
               </div>
+              )}
             </div>
           )}
         </Fragment>

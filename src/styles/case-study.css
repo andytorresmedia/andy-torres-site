@@ -343,6 +343,22 @@
   backdrop-filter: blur(2px);
   animation: csFadeIn 320ms ease-out forwards;
 }
+.cs-file-loading {
+  width: 760px;
+  max-width: 92vw;
+  height: 78vh;
+  max-height: 860px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: rgba(5,5,7,0.62);
+  border: 1px solid var(--hairline);
+  backdrop-filter: blur(14px);
+  color: var(--paper);
+  animation: csFadeIn 240ms ease-out forwards;
+}
 
 /* slow idle float so the slab "breathes"; cursor/gyro tilt composes on top */
 .cs-card-float {
@@ -833,7 +849,8 @@
 
 /* responsive */
 @media (max-width: 900px) {
-  .cs-card-float { width: 94vw; height: 86vh; }
+  .cs-card-float,
+  .cs-file-loading { width: 94vw; height: 86vh; }
   .cs-rd-grid { grid-template-columns: 1fr; }
   .cs-about-row { grid-template-columns: 1fr; gap: 8px; }
 }

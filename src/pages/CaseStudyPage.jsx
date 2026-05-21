@@ -261,12 +261,30 @@ function GalleryTab({ project }) {
       state.timeout = null;
     }, 240);
   };
+  const onStagePointerDownCapture = (e) => {
+    if (items.length < 2 || (e.button !== undefined && e.button !== 0)) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const action = e.clientX < rect.left + rect.width / 2 ? prev : next;
+    e.preventDefault();
+    e.stopPropagation();
+    action();
+  };
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage) return undefined;
 
+    const onGalleryNav = (event) => {
+      if (event.detail?.direction === 'prev') prev();
+      else next();
+    };
+
     stage.addEventListener('wheel', onGalleryWheel, { passive: false });
-    return () => stage.removeEventListener('wheel', onGalleryWheel);
+    stage.addEventListener(GALLERY_NAV_EVENT, onGalleryNav);
+    return () => {
+      stage.removeEventListener('wheel', onGalleryWheel);
+      stage.removeEventListener(GALLERY_NAV_EVENT, onGalleryNav);
+    };
   });
   const onPointerAction = (e, action) => {
     if (e.button !== undefined && e.button !== 0) return;
@@ -282,7 +300,12 @@ function GalleryTab({ project }) {
 
   return (
     <div className="cs-gallery">
-      <div ref={stageRef} className="cs-gallery-stage" style={{ '--bg-img': `url(${asset(cur.src)})` }}>
+      <div
+        ref={stageRef}
+        className="cs-gallery-stage"
+        style={{ '--bg-img': `url(${asset(cur.src)})` }}
+        onPointerDownCapture={onStagePointerDownCapture}
+      >
         <div className="cs-gallery-bg" />
         <div key={smashKey} className="cs-gallery-frame">
           <img src={asset(cur.src)} alt={cur.caption} />
@@ -409,15 +432,16 @@ const REST_RX = 0;
 const REST_RY = 0;
 const POINTER_TILT_X = 20;
 const POINTER_TILT_Y = 24;
-const CONTROL_TILT_SCALE = 0;
+const CONTROL_TILT_SCALE = 0.65;
 const DEVICE_TILT_X = 7;
 const DEVICE_TILT_Y = 8;
 const DEVICE_TILT_RANGE = 24;
 const CARD_TILT_SPRING = { stiffness: 160, damping: 24, mass: 0.7 };
 const CARD_STABLE_TARGETS = 'button, a, input, textarea, select, [role="button"], [role="link"]';
-const CARD_FREE_TILT_TARGETS = '.cs-gallery-half';
+const CARD_FREE_TILT_TARGETS = '.cs-gallery-stage, .cs-gallery-half';
 const CARD_TOUCH_STABLE_TARGETS = `${CARD_STABLE_TARGETS}, .cs-card-body`;
 const CARD_TABS = ['about', 'gallery', 'rd'];
+const GALLERY_NAV_EVENT = 'frontrow:gallery-nav';
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -501,7 +525,7 @@ export function CaseStudyPage() {
   const [tab, setTab] = useState('about');
   const videoRef = useRef(null);
   const cardTabsRef = useRef(null);
-  const cardInsetRef = useRef(null);
+  const cardFloatRef = useRef(null);
   const cardBodyRef = useRef(null);
   const cardCloseRef = useRef(null);
   const cardHoverRectRef = useRef(null);
@@ -583,9 +607,9 @@ export function CaseStudyPage() {
 
   useEffect(() => {
     if (!detailsOpen) return undefined;
-    const inset = cardInsetRef.current;
+    const wheelRoot = cardFloatRef.current;
     const body = cardBodyRef.current;
-    if (!inset || !body) return undefined;
+    if (!wheelRoot || !body) return undefined;
 
     const onContentWheel = (event) => {
       if (!(event.target instanceof Element)) return;
@@ -600,8 +624,8 @@ export function CaseStudyPage() {
       body.scrollTop += primaryDelta;
     };
 
-    inset.addEventListener('wheel', onContentWheel, { passive: false });
-    return () => inset.removeEventListener('wheel', onContentWheel);
+    wheelRoot.addEventListener('wheel', onContentWheel, { passive: false, capture: true });
+    return () => wheelRoot.removeEventListener('wheel', onContentWheel, { capture: true });
   }, [detailsOpen, tab]);
 
   useEffect(() => {
@@ -673,6 +697,30 @@ export function CaseStudyPage() {
     if (e.button !== undefined && e.button !== 0) return;
     if (closeCardFromPointer(e)) return;
 
+    if (tab === 'gallery') {
+      const galleryStage = cardBodyRef.current?.querySelector('.cs-gallery-stage');
+      if (galleryStage) {
+        const rect = galleryStage.getBoundingClientRect();
+        const hitSlack = 14;
+        const isGalleryHit =
+          e.clientX >= rect.left - hitSlack &&
+          e.clientX <= rect.right + hitSlack &&
+          e.clientY >= rect.top - hitSlack &&
+          e.clientY <= rect.bottom + hitSlack;
+
+        if (isGalleryHit) {
+          galleryStage.dispatchEvent(
+            new CustomEvent(GALLERY_NAV_EVENT, {
+              detail: { direction: e.clientX < rect.left + rect.width / 2 ? 'prev' : 'next' },
+            }),
+          );
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+      }
+    }
+
     const cardRect = readCardLayoutRect(e.currentTarget);
     const x = e.clientX - cardRect.left;
     const y = e.clientY - cardRect.top;
@@ -698,11 +746,6 @@ export function CaseStudyPage() {
     cardHoverRectRef.current = readCardLayoutRect(e.currentTarget);
   };
   const onCardMouseMove = (e) => {
-    if (e.target instanceof Element && e.target.closest('.cs-card-inset')) {
-      easeCardTiltToRest();
-      return;
-    }
-
     const rect = cardHoverRectRef.current || readCardLayoutRect(e.currentTarget);
     const scale = isCardStableTarget(e.target) ? CONTROL_TILT_SCALE : 1;
     setCardTiltFromPoint(e.clientX, e.clientY, rect, scale);
@@ -828,6 +871,7 @@ export function CaseStudyPage() {
               }}
             >
               <div
+                ref={cardFloatRef}
                 className="cs-card-float"
                 onPointerDownCapture={onCardPointerDownCapture}
                 onMouseEnter={onCardMouseEnter}
@@ -848,7 +892,7 @@ export function CaseStudyPage() {
                 <span className="slab-wall right" aria-hidden="true" />
                 <span className="slab-wall bottom" aria-hidden="true" />
                 <span className="slab-wall left" aria-hidden="true" />
-                <div className="cs-card-inset" ref={cardInsetRef}>
+                <div className="cs-card-inset">
                 <div className="cs-card-grade">
                   <span className="grade-l mono">[FR-{(project.id || '').toUpperCase()}] · CASE FILE</span>
                   <span className="grade-c mono">MASTER FILE</span>

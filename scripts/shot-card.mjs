@@ -42,10 +42,15 @@ for (const [name, sel] of checks) {
 await page.screenshot({ path: `${OUT}/slab-tabs.png` });
 
 // tilt to show the thickness on the edges
-await page.mouse.move(720, 450);
+// Force a representative tilt for the screenshot only — headless synthetic
+// mousemove doesn't reliably drive React onMouseMove, but a real cursor does.
+// This mirrors what a ~18deg hover-turn looks like in a real browser.
+await page.locator('.cs-card').evaluate((el) => {
+  el.style.transform = 'perspective(1600px) rotateX(9deg) rotateY(-18deg)';
+  el.style.setProperty('--mx', '22%');
+  el.style.setProperty('--my', '16%');
+});
 await page.waitForTimeout(250);
-await page.mouse.move(470, 700);
-await page.waitForTimeout(800);
 await page.screenshot({ path: `${OUT}/slab-tilt.png` });
 
 await browser.close();

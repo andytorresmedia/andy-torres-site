@@ -422,8 +422,8 @@ export function CaseStudyPage() {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    ryRaw.set(REST_RY + (x - 0.5) * 18);
-    rxRaw.set(REST_RX + (0.5 - y) * 14);
+    ryRaw.set(REST_RY + (x - 0.5) * 32);
+    rxRaw.set(REST_RX + (0.5 - y) * 26);
     mx.set(x * 100);
     my.set(y * 100);
   };
@@ -534,9 +534,7 @@ export function CaseStudyPage() {
                 <span className="slab-wall right" aria-hidden="true" />
                 <span className="slab-wall bottom" aria-hidden="true" />
                 <span className="slab-wall left" aria-hidden="true" />
-                <div className="cs-card-holo" />
-                <div className="cs-card-spec" />
-                <div className="cs-card-glass" />
+                <div className="cs-card-inset">
                 <div className="cs-card-grade">
                   <span className="grade-l mono">[FR-{(project.id || '').toUpperCase()}] · CASE FILE</span>
                   <span className="grade-c mono">MASTER FILE</span>
@@ -580,6 +578,10 @@ export function CaseStudyPage() {
                     <span className="lbl accent">CLIENT</span>
                     <span className="val accent">{project.client}</span>
                   </div>
+                </div>
+                <div className="cs-card-holo" />
+                <div className="cs-card-spec" />
+                <div className="cs-card-glass" />
                 </div>
                 <span className="card-corner tl" />
                 <span className="card-corner tr" />

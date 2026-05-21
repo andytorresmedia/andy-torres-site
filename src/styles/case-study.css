@@ -806,8 +806,8 @@
 }
 .cs-gallery-half.left  { left: 0;  justify-content: flex-start; padding: 0 0 0 14px; }
 .cs-gallery-half.right { right: 0; justify-content: flex-end;   padding: 0 14px 0 0; }
-.cs-gallery-half.left { background: linear-gradient(to right, rgba(0,0,0,0.18), transparent 48%); }
-.cs-gallery-half.right { background: linear-gradient(to left, rgba(0,0,0,0.18), transparent 48%); }
+.cs-gallery-half.left { background: linear-gradient(to right, rgba(255,91,31,0.12), rgba(0,0,0,0.2) 20%, transparent 56%); }
+.cs-gallery-half.right { background: linear-gradient(to left, rgba(255,91,31,0.12), rgba(0,0,0,0.2) 20%, transparent 56%); }
 .cs-gallery-half.left:hover { background: linear-gradient(to right, rgba(255,91,31,0.16), rgba(0,0,0,0.24) 18%, transparent 56%); }
 .cs-gallery-half.right:hover { background: linear-gradient(to left, rgba(255,91,31,0.16), rgba(0,0,0,0.24) 18%, transparent 56%); }
 .cs-gallery-half .arr {

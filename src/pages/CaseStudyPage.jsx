@@ -229,17 +229,14 @@ function GalleryTab({ project }) {
   const next = () => {
     showFrame((i) => (i + 1) % items.length);
   };
-  const onGalleryWheel = (e) => {
+  const handleGalleryWheelDelta = (deltaX, deltaY) => {
     if (items.length < 2) return;
 
-    const primaryDelta = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-    if (Math.abs(primaryDelta) < 2) return;
-
-    e.preventDefault();
-    e.stopPropagation();
+    const primaryDelta = Math.abs(deltaY) >= Math.abs(deltaX) ? deltaY : deltaX;
+    if (Math.abs(primaryDelta) < 2) return false;
 
     const state = wheelStateRef.current;
-    if (state.locked) return;
+    if (state.locked) return true;
 
     state.delta += primaryDelta;
     if (Math.abs(state.delta) < 48) {
@@ -248,7 +245,7 @@ function GalleryTab({ project }) {
         state.delta = 0;
         state.timeout = null;
       }, 180);
-      return;
+      return true;
     }
 
     if (state.timeout) clearTimeout(state.timeout);
@@ -260,6 +257,13 @@ function GalleryTab({ project }) {
       state.locked = false;
       state.timeout = null;
     }, 240);
+
+    return true;
+  };
+  const onGalleryWheel = (e) => {
+    if (!handleGalleryWheelDelta(e.deltaX, e.deltaY)) return;
+    e.preventDefault();
+    e.stopPropagation();
   };
   const onStagePointerDownCapture = (e) => {
     if (items.length < 2 || (e.button !== undefined && e.button !== 0)) return;
@@ -278,12 +282,23 @@ function GalleryTab({ project }) {
       if (event.detail?.direction === 'prev') prev();
       else next();
     };
+    const onGalleryShow = (event) => {
+      const index = event.detail?.index;
+      if (typeof index === 'number') showFrame(index);
+    };
+    const onGalleryWheelProxy = (event) => {
+      handleGalleryWheelDelta(event.detail?.deltaX || 0, event.detail?.deltaY || 0);
+    };
 
     stage.addEventListener('wheel', onGalleryWheel, { passive: false });
     stage.addEventListener(GALLERY_NAV_EVENT, onGalleryNav);
+    stage.addEventListener(GALLERY_SHOW_EVENT, onGalleryShow);
+    stage.addEventListener(GALLERY_WHEEL_EVENT, onGalleryWheelProxy);
     return () => {
       stage.removeEventListener('wheel', onGalleryWheel);
       stage.removeEventListener(GALLERY_NAV_EVENT, onGalleryNav);
+      stage.removeEventListener(GALLERY_SHOW_EVENT, onGalleryShow);
+      stage.removeEventListener(GALLERY_WHEEL_EVENT, onGalleryWheelProxy);
     };
   });
   const onPointerAction = (e, action) => {
@@ -442,8 +457,16 @@ const CARD_FREE_TILT_TARGETS = '.cs-gallery-stage, .cs-gallery-half';
 const CARD_TOUCH_STABLE_TARGETS = `${CARD_STABLE_TARGETS}, .cs-card-body`;
 const CARD_TABS = ['about', 'gallery', 'rd'];
 const GALLERY_NAV_EVENT = 'frontrow:gallery-nav';
+const GALLERY_SHOW_EVENT = 'frontrow:gallery-show';
+const GALLERY_WHEEL_EVENT = 'frontrow:gallery-wheel';
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+const isPointInRect = (clientX, clientY, rect, slack = 0) => (
+  clientX >= rect.left - slack &&
+  clientX <= rect.right + slack &&
+  clientY >= rect.top - slack &&
+  clientY <= rect.bottom + slack
+);
 
 const isTouchTiltDevice = () => {
   if (typeof window === 'undefined') return false;
@@ -613,6 +636,21 @@ export function CaseStudyPage() {
 
     const onContentWheel = (event) => {
       if (!(event.target instanceof Element)) return;
+
+      if (tab === 'gallery') {
+        const galleryStage = body.querySelector('.cs-gallery-stage');
+        if (galleryStage && isPointInRect(event.clientX, event.clientY, galleryStage.getBoundingClientRect(), 24)) {
+          event.preventDefault();
+          event.stopPropagation();
+          galleryStage.dispatchEvent(
+            new CustomEvent(GALLERY_WHEEL_EVENT, {
+              detail: { deltaX: event.deltaX, deltaY: event.deltaY },
+            }),
+          );
+          return;
+        }
+      }
+
       if (event.target.closest('.cs-gallery-stage, .cs-gallery-thumbs')) return;
       if (body.scrollHeight <= body.clientHeight + 1) return;
 
@@ -699,14 +737,23 @@ export function CaseStudyPage() {
 
     if (tab === 'gallery') {
       const galleryStage = cardBodyRef.current?.querySelector('.cs-gallery-stage');
+      const galleryThumbs = Array.from(cardBodyRef.current?.querySelectorAll('.cs-gallery-thumb') || []);
       if (galleryStage) {
+        const thumbIndex = galleryThumbs.findIndex((thumb) => isPointInRect(e.clientX, e.clientY, thumb.getBoundingClientRect(), 8));
+        if (thumbIndex >= 0) {
+          galleryStage.dispatchEvent(
+            new CustomEvent(GALLERY_SHOW_EVENT, {
+              detail: { index: thumbIndex },
+            }),
+          );
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+
         const rect = galleryStage.getBoundingClientRect();
         const hitSlack = 14;
-        const isGalleryHit =
-          e.clientX >= rect.left - hitSlack &&
-          e.clientX <= rect.right + hitSlack &&
-          e.clientY >= rect.top - hitSlack &&
-          e.clientY <= rect.bottom + hitSlack;
+        const isGalleryHit = isPointInRect(e.clientX, e.clientY, rect, hitSlack);
 
         if (isGalleryHit) {
           galleryStage.dispatchEvent(

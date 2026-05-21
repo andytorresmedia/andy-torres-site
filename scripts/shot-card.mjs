@@ -34,7 +34,13 @@ await page.screenshot({ path: `${OUT}/slab-rest.png` }); // straight-facing at r
 // CLICK RELIABILITY: click each tab by its word; confirm the tab's content renders.
 const checks = [['Gallery', '.cs-gallery'], ['R&D', '.cs-rd-grid'], ['About', '.cs-about-row']];
 const tabResult = {};
-const galleryResult = { progressRemoved: false, wheelChangedFrame: false, sideClickChangedFrame: false, thumbChangedFrame: false };
+const galleryResult = {
+  progressRemoved: false,
+  wheelChangedFrame: false,
+  edgeWheelChangedFrame: false,
+  sideClickChangedFrame: false,
+  thumbChangedFrame: false,
+};
 const contentResult = { aboutWheelScrollsFromTitle: false };
 for (const [name, sel] of checks) {
   try {
@@ -50,12 +56,20 @@ for (const [name, sel] of checks) {
       const after = await page.locator('.cs-gallery-caption .count').first().innerText();
       galleryResult.wheelChangedFrame = before !== after;
 
+      const stageBox = await page.locator('.cs-gallery-stage').boundingBox({ timeout: 5000 });
+      if (!stageBox) throw new Error('gallery stage has no bounding box');
+      await page.mouse.move(stageBox.x + stageBox.width * 0.9, stageBox.y + stageBox.height * 0.35);
+      await page.mouse.wheel(0, 700);
+      await page.waitForTimeout(450);
+      const afterEdgeWheel = await page.locator('.cs-gallery-caption .count').first().innerText();
+      galleryResult.edgeWheelChangedFrame = afterEdgeWheel !== after;
+
       const rightBox = await page.locator('.cs-gallery-half.right').boundingBox({ timeout: 5000 });
       if (!rightBox) throw new Error('gallery right hit zone has no bounding box');
       await page.mouse.click(rightBox.x + rightBox.width * 0.72, rightBox.y + rightBox.height / 2);
       await page.waitForTimeout(450);
       const afterSideClick = await page.locator('.cs-gallery-caption .count').first().innerText();
-      galleryResult.sideClickChangedFrame = afterSideClick !== after;
+      galleryResult.sideClickChangedFrame = afterSideClick !== afterEdgeWheel;
 
       await page.locator('.cs-gallery-thumb').nth(3).click({ timeout: 5000 });
       await page.waitForTimeout(450);

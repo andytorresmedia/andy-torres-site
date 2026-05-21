@@ -130,34 +130,134 @@
 .cs-top-c { text-align: center; }
 .cs-top-c .ttl { font-family: var(--font-display); font-size: 28px; letter-spacing: 0.01em; line-height: 1; }
 .cs-top-c .meta { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--bone); opacity: 0.7; margin-top: 4px; }
-.cs-top-r { display: flex; justify-content: flex-end; align-items: center; gap: 14px; }
+.cs-top-r {
+  display: flex; justify-content: flex-end; align-items: flex-start; gap: 14px;
+  padding-top: clamp(46px, 6vh, 68px);
+}
 .cs-close {
+  position: relative;
+  overflow: hidden;
   font-family: var(--font-mono); font-size: 11px;
   letter-spacing: 0.18em; text-transform: uppercase;
-  padding: 10px 14px;
-  border: 1px solid var(--paper);
-  background: rgba(0,0,0,0.45);
+  padding: 11px 16px;
+  border: 1px solid rgba(255,91,31,0.72);
+  background: rgba(0,0,0,0.56);
   backdrop-filter: blur(6px);
   color: var(--paper);
   cursor: pointer;
-  transition: background 200ms ease, color 200ms ease;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 0 22px rgba(255,91,31,0.12);
+  transition: background 200ms ease, color 200ms ease, border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
 }
-.cs-close:hover { background: var(--paper); color: var(--ink); }
+.cs-close::before {
+  content: '';
+  position: absolute; left: 8px; right: 8px; bottom: 4px;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, var(--accent-live) 0 6px, transparent 6px 11px);
+  opacity: 0.7;
+}
+.cs-close:hover {
+  background: var(--paper);
+  border-color: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.42), 0 0 28px rgba(255,91,31,0.24);
+  transform: translateY(-1px);
+}
 
 /* ─── floating "Project File" button bottom-right ─── */
 .cs-details-btn {
   position: absolute; right: var(--safe); bottom: 96px;
   z-index: 6;
-  display: inline-flex; align-items: center; gap: 12px;
-  padding: 16px 24px;
-  background: var(--paper); color: var(--ink);
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 14px;
+  min-width: 286px;
+  padding: 22px 22px 14px;
+  overflow: hidden;
+  isolation: isolate;
+  background: rgba(242,234,222,0.96); color: var(--ink);
   font-family: var(--font-mono); font-size: 12px;
   letter-spacing: 0.18em; text-transform: uppercase;
-  border: 0; cursor: pointer;
-  transition: background 200ms ease, color 200ms ease, transform 200ms ease;
+  border: 1px solid rgba(255,91,31,0.88); cursor: pointer;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.5),
+    0 0 34px rgba(255,91,31,0.2),
+    inset 0 0 0 1px rgba(255,255,255,0.55);
+  animation: detailsBeacon 2.8s ease-in-out infinite;
+  transition: background 200ms ease, color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
 }
-.cs-details-btn:hover { background: var(--accent-live); color: var(--ink); transform: translateY(-2px); }
+.cs-details-btn::before {
+  content: '';
+  position: absolute; inset: 4px;
+  z-index: -1;
+  border: 1px solid rgba(11,11,12,0.2);
+  pointer-events: none;
+}
+.cs-details-btn::after {
+  content: '';
+  position: absolute; inset: 0;
+  z-index: -1;
+  background: linear-gradient(105deg, transparent 0 38%, rgba(255,255,255,0.72) 49%, transparent 60%);
+  transform: translateX(-130%);
+  animation: detailsSweep 2.6s cubic-bezier(0.65,0,0.35,1) infinite;
+  pointer-events: none;
+}
+.cs-details-ticker {
+  position: absolute; top: 5px; left: 13px; right: 13px;
+  font-size: 8px;
+  letter-spacing: 0.24em;
+  line-height: 1;
+  color: rgba(11,11,12,0.45);
+  white-space: nowrap;
+  transform-origin: left center;
+  animation: detailsTicker 1.2s steps(4, end) infinite;
+}
+.cs-details-label,
+.cs-details-arrow {
+  position: relative;
+  z-index: 1;
+}
+.cs-details-arrow {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  border: 1px solid rgba(11,11,12,0.38);
+  background: rgba(255,91,31,0.16);
+  font-size: 14px;
+  animation: detailsArrow 1.6s ease-in-out infinite;
+}
+.cs-details-btn:hover {
+  background: var(--accent-live);
+  color: var(--ink);
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.55),
+    0 0 42px rgba(255,91,31,0.38),
+    inset 0 0 0 1px rgba(255,255,255,0.38);
+}
 .cs-overlay.details-open .cs-details-btn { display: none; }
+@keyframes detailsBeacon {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 0 28px rgba(255,91,31,0.16), inset 0 0 0 1px rgba(255,255,255,0.55); }
+  50%      { box-shadow: 0 0 0 1px rgba(0,0,0,0.5), 0 0 44px rgba(255,91,31,0.3), inset 0 0 0 1px rgba(255,255,255,0.65); }
+}
+@keyframes detailsSweep {
+  0%, 36%  { transform: translateX(-130%); }
+  66%,100% { transform: translateX(130%); }
+}
+@keyframes detailsTicker {
+  0%   { opacity: 0.32; transform: scaleX(0.94); }
+  50%  { opacity: 0.62; transform: scaleX(1); }
+  100% { opacity: 0.32; transform: scaleX(0.94); }
+}
+@keyframes detailsArrow {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-details-btn,
+  .cs-details-btn::after,
+  .cs-details-ticker,
+  .cs-details-arrow {
+    animation: none;
+  }
+}
 
 /* ─── bottom-left lower-third ─── */
 .cs-lower {

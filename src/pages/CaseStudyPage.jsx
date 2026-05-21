@@ -735,7 +735,13 @@ export function CaseStudyPage() {
           <span className="section-bracket br" />
 
           <button className="cs-details-btn" onClick={onDetailsButtonClick}>
-            {detailsOpen ? 'Hide File ↓' : 'Open Project File ↑'}
+            <span className="cs-details-ticker" aria-hidden="true">
+              [SYS] / / / 0101
+            </span>
+            <span className="cs-details-label">{detailsOpen ? 'Hide File' : 'Open Project File'}</span>
+            <span className="cs-details-arrow" aria-hidden="true">
+              {detailsOpen ? '↓' : '↑'}
+            </span>
           </button>
 
           {!detailsOpen && !muxId && <VideoControls videoRef={videoRef} />}

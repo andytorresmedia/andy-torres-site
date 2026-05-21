@@ -412,7 +412,17 @@ export function CaseStudyPage() {
 
   if (!project) return <Navigate to="/work" replace />;
 
+  const easeCardTiltToRest = () => {
+    rxRaw.set(rxRaw.get() + (REST_RX - rxRaw.get()) * 0.25);
+    ryRaw.set(ryRaw.get() + (REST_RY - ryRaw.get()) * 0.25);
+  };
+
   const onCardMouseMove = (e) => {
+    if (e.target instanceof Element && e.target.closest('.cs-card-inset')) {
+      easeCardTiltToRest();
+      return;
+    }
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;

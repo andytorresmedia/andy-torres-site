@@ -6,7 +6,7 @@
 // flash on each switch, side-rail jump nav, accent progress bar.
 
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useScroll, useTransform, useMotionValueEvent, motion } from 'motion/react';
 import { AIWall } from '../components/AIWall';
 import { asset } from '../lib/assets';
@@ -61,6 +61,7 @@ export function StickySequence() {
   const whiteRef = useRef(null);
   const pageScroll = usePageScroll();
   const location = useLocation();
+  const navigate = useNavigate();
   const [active, setActive] = useState(0);
   const [prevActive, setPrevActive] = useState(0);
   const [switchKey, setSwitchKey] = useState(0);
@@ -105,14 +106,16 @@ export function StickySequence() {
 
   useEffect(() => {
     const top = location.state?.restoreHomeScrollTop;
+    const shouldRestore = location.state?.restoreHomeScrollOnce === true;
     const container = pageScroll?.current;
-    if (typeof top !== 'number' || !container || restoredScrollRef.current) return;
+    if (!shouldRestore || typeof top !== 'number' || !container || restoredScrollRef.current) return;
 
     restoredScrollRef.current = true;
     requestAnimationFrame(() => {
       container.scrollTo({ top, behavior: 'auto' });
+      navigate(location.pathname, { replace: true, state: null });
     });
-  }, [location.state, pageScroll]);
+  }, [location.pathname, location.state, navigate, pageScroll]);
 
   const jumpTo = (i) => {
     const wrap = wrapRef.current;
@@ -135,7 +138,7 @@ export function StickySequence() {
         lingerLoading: true,
         returnTo: {
           pathname: '/',
-          state: { restoreHomeScrollTop: returnTop },
+          state: { restoreHomeScrollTop: returnTop, restoreHomeScrollOnce: true },
         },
       },
     });

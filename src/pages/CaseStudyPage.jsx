@@ -354,12 +354,15 @@ const LOADING_PHASES = ['Connecting media', 'Authenticating', 'Routing'];
 // Rest facing straight at the camera; the slab only tilts while you move over it.
 const REST_RX = 0;
 const REST_RY = 0;
-const POINTER_TILT_X = 14;
-const POINTER_TILT_Y = 16;
+const POINTER_TILT_X = 20;
+const POINTER_TILT_Y = 24;
+const CONTROL_TILT_SCALE = 0;
 const DEVICE_TILT_X = 7;
 const DEVICE_TILT_Y = 8;
 const DEVICE_TILT_RANGE = 24;
+const CARD_TILT_SPRING = { stiffness: 160, damping: 24, mass: 0.7 };
 const CARD_STABLE_TARGETS = 'button, a, input, textarea, select, [role="button"], [role="link"]';
+const CARD_FREE_TILT_TARGETS = '.cs-gallery-half';
 const CARD_TOUCH_STABLE_TARGETS = `${CARD_STABLE_TARGETS}, .cs-card-body`;
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -388,8 +391,30 @@ const requestOrientationTilt = async () => {
   return true;
 };
 
-const isCardStableTarget = (target) => target instanceof Element && Boolean(target.closest(CARD_STABLE_TARGETS));
+const isCardStableTarget = (target) => {
+  if (!(target instanceof Element)) return false;
+  const stableTarget = target.closest(CARD_STABLE_TARGETS);
+  return Boolean(stableTarget && !stableTarget.closest(CARD_FREE_TILT_TARGETS));
+};
 const isCardTouchStableTarget = (target) => target instanceof Element && Boolean(target.closest(CARD_TOUCH_STABLE_TARGETS));
+
+const readCardLayoutRect = (element) => {
+  const rect = element.getBoundingClientRect();
+  return {
+    left: rect.left,
+    top: rect.top,
+    width: element.offsetWidth || rect.width,
+    height: element.offsetHeight || rect.height,
+  };
+};
+
+const cardPointFromClient = (clientX, clientY, rect) => {
+  if (!rect.width || !rect.height) return { x: 0.5, y: 0.5 };
+  return {
+    x: clamp((clientX - rect.left) / rect.width, 0, 1),
+    y: clamp((clientY - rect.top) / rect.height, 0, 1),
+  };
+};
 
 function LoadingPhases() {
   const [i, setI] = useState(0);
@@ -419,6 +444,7 @@ export function CaseStudyPage() {
   const [gyroTiltActive, setGyroTiltActive] = useState(false);
   const [tab, setTab] = useState('about');
   const videoRef = useRef(null);
+  const cardHoverRectRef = useRef(null);
   const orientationBaseRef = useRef(null);
   const touchDragRef = useRef(null);
   const touchInteractingRef = useRef(false);
@@ -427,8 +453,8 @@ export function CaseStudyPage() {
   // the glow/sheen layers are static, so hover stays fluid even on huge displays.
   const rxRaw = useMotionValue(REST_RX);
   const ryRaw = useMotionValue(REST_RY);
-  const rx = useSpring(rxRaw, { stiffness: 140, damping: 16, mass: 0.6 });
-  const ry = useSpring(ryRaw, { stiffness: 140, damping: 16, mass: 0.6 });
+  const rx = useSpring(rxRaw, CARD_TILT_SPRING);
+  const ry = useSpring(ryRaw, CARD_TILT_SPRING);
   // perspective() must be the first transform function (the CSS `perspective`
   // property didn't survive the backdrop-filtered wrapper).
   const cardTransform = useMotionTemplate`perspective(1600px) rotateX(${rx}deg) rotateY(${ry}deg)`;
@@ -454,6 +480,7 @@ export function CaseStudyPage() {
     if (detailsOpen) return;
     setGyroTiltActive(false);
     orientationBaseRef.current = null;
+    cardHoverRectRef.current = null;
     touchDragRef.current = null;
     touchInteractingRef.current = false;
     rxRaw.set(REST_RX);
@@ -486,6 +513,11 @@ export function CaseStudyPage() {
     rxRaw.set(rxRaw.get() + (REST_RX - rxRaw.get()) * 0.25);
     ryRaw.set(ryRaw.get() + (REST_RY - ryRaw.get()) * 0.25);
   };
+  const setCardTiltFromPoint = (clientX, clientY, rect, scale = 1) => {
+    const { x, y } = cardPointFromClient(clientX, clientY, rect);
+    ryRaw.set(REST_RY + (x - 0.5) * POINTER_TILT_Y * scale);
+    rxRaw.set(REST_RX + (0.5 - y) * POINTER_TILT_X * scale);
+  };
 
   const onDetailsButtonClick = async () => {
     if (detailsOpen) {
@@ -502,19 +534,16 @@ export function CaseStudyPage() {
     }
   };
 
+  const onCardMouseEnter = (e) => {
+    cardHoverRectRef.current = readCardLayoutRect(e.currentTarget);
+  };
   const onCardMouseMove = (e) => {
-    if (isCardStableTarget(e.target)) {
-      easeCardTiltToRest();
-      return;
-    }
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    ryRaw.set(REST_RY + (x - 0.5) * POINTER_TILT_Y);
-    rxRaw.set(REST_RX + (0.5 - y) * POINTER_TILT_X);
+    const rect = cardHoverRectRef.current || readCardLayoutRect(e.currentTarget);
+    const scale = isCardStableTarget(e.target) ? CONTROL_TILT_SCALE : 1;
+    setCardTiltFromPoint(e.clientX, e.clientY, rect, scale);
   };
   const onCardMouseLeave = () => {
+    cardHoverRectRef.current = null;
     rxRaw.set(REST_RX);
     ryRaw.set(REST_RY);
   };
@@ -529,7 +558,7 @@ export function CaseStudyPage() {
 
     const touch = e.touches[0];
     if (!touch) return;
-    touchDragRef.current = { rect: e.currentTarget.getBoundingClientRect() };
+    touchDragRef.current = { rect: readCardLayoutRect(e.currentTarget) };
   };
   const onCardTouchMove = (e) => {
     const touch = e.touches[0];
@@ -539,8 +568,7 @@ export function CaseStudyPage() {
     }
 
     const { rect } = touchDragRef.current;
-    const x = (touch.clientX - rect.left) / rect.width;
-    const y = (touch.clientY - rect.top) / rect.height;
+    const { x, y } = cardPointFromClient(touch.clientX, touch.clientY, rect);
     ryRaw.set(REST_RY + (x - 0.5) * DEVICE_TILT_Y * 2);
     rxRaw.set(REST_RX + (0.5 - y) * DEVICE_TILT_X * 2);
   };
@@ -634,17 +662,20 @@ export function CaseStudyPage() {
                 if (e.target === e.currentTarget) setDetailsOpen(false);
               }}
             >
-              <div className="cs-card-float">
-              <div className="cs-card-shadow" aria-hidden="true" />
-              <motion.div
-                className="cs-card"
-                style={{ transform: cardTransform }}
+              <div
+                className="cs-card-float"
+                onMouseEnter={onCardMouseEnter}
                 onMouseMove={onCardMouseMove}
                 onMouseLeave={onCardMouseLeave}
                 onTouchStart={onCardTouchStart}
                 onTouchMove={onCardTouchMove}
                 onTouchEnd={onCardTouchEnd}
                 onTouchCancel={onCardTouchEnd}
+              >
+              <div className="cs-card-shadow" aria-hidden="true" />
+              <motion.div
+                className="cs-card"
+                style={{ transform: cardTransform }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.28 }}

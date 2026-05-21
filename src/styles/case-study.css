@@ -347,6 +347,10 @@
 /* slow idle float so the slab "breathes"; cursor/gyro tilt composes on top */
 .cs-card-float {
   position: relative;
+  width: 760px;
+  max-width: 92vw;
+  height: 78vh;
+  max-height: 860px;
   transform-style: preserve-3d;
   /* No constant idle animation: a perpetually-moving card makes its own buttons
      impossible to click (the target drifts out from under the cursor). The slab
@@ -374,8 +378,8 @@
    panel is recessed inside it (.cs-card-inset). */
 .cs-card {
   position: relative;
-  width: 760px; max-width: 92vw;
-  height: 78vh; max-height: 860px;
+  width: 100%;
+  height: 100%;
   padding: 15px;
   background:
     linear-gradient(135deg, #eef1f4 0%, #aab0ba 16%, #dce0e5 34%, #868d98 54%,
@@ -829,7 +833,7 @@
 
 /* responsive */
 @media (max-width: 900px) {
-  .cs-card { width: 94vw; height: 86vh; }
+  .cs-card-float { width: 94vw; height: 86vh; }
   .cs-rd-grid { grid-template-columns: 1fr; }
   .cs-about-row { grid-template-columns: 1fr; gap: 8px; }
 }

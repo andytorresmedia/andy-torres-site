@@ -388,8 +388,8 @@ export function CaseStudyPage() {
   const my = useMotionValue(50);
   const rxRaw = useMotionValue(REST_RX);
   const ryRaw = useMotionValue(REST_RY);
-  const rx = useSpring(rxRaw, { stiffness: 160, damping: 22, mass: 0.5 });
-  const ry = useSpring(ryRaw, { stiffness: 160, damping: 22, mass: 0.5 });
+  const rx = useSpring(rxRaw, { stiffness: 140, damping: 16, mass: 0.6 });
+  const ry = useSpring(ryRaw, { stiffness: 140, damping: 16, mass: 0.6 });
   // perspective() lives in the transform itself (must be the first function) — the CSS
   // `perspective` property didn't survive the backdrop-filtered wrapper. The idle-float
   // wrapper only translates, so it doesn't fight this self-contained perspective.
@@ -422,8 +422,8 @@ export function CaseStudyPage() {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
-    ryRaw.set(REST_RY + (x - 0.5) * 32);
-    rxRaw.set(REST_RX + (0.5 - y) * 26);
+    ryRaw.set(REST_RY + (x - 0.5) * 16);
+    rxRaw.set(REST_RX + (0.5 - y) * 14);
     mx.set(x * 100);
     my.set(y * 100);
   };

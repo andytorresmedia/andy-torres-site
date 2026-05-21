@@ -383,21 +383,15 @@ export function CaseStudyPage() {
   const [tab, setTab] = useState('about');
   const videoRef = useRef(null);
 
-  // 3D tilt — spring-smoothed for inertia; CSS provides the preserve-3d depth.
-  const mx = useMotionValue(50);
-  const my = useMotionValue(50);
+  // 3D tilt — only the rotation updates per mouse move (a cheap GPU transform);
+  // the glow/sheen layers are static, so hover stays fluid even on huge displays.
   const rxRaw = useMotionValue(REST_RX);
   const ryRaw = useMotionValue(REST_RY);
   const rx = useSpring(rxRaw, { stiffness: 140, damping: 16, mass: 0.6 });
   const ry = useSpring(ryRaw, { stiffness: 140, damping: 16, mass: 0.6 });
-  // perspective() lives in the transform itself (must be the first function) — the CSS
-  // `perspective` property didn't survive the backdrop-filtered wrapper. The idle-float
-  // wrapper only translates, so it doesn't fight this self-contained perspective.
+  // perspective() must be the first transform function (the CSS `perspective`
+  // property didn't survive the backdrop-filtered wrapper).
   const cardTransform = useMotionTemplate`perspective(1600px) rotateX(${rx}deg) rotateY(${ry}deg)`;
-  const rxDeg = useMotionTemplate`${rx}deg`;
-  const ryDeg = useMotionTemplate`${ry}deg`;
-  const mxPct = useMotionTemplate`${mx}%`;
-  const myPct = useMotionTemplate`${my}%`;
 
   useEffect(() => {
     setLoading(true);
@@ -424,14 +418,10 @@ export function CaseStudyPage() {
     const y = (e.clientY - rect.top) / rect.height;
     ryRaw.set(REST_RY + (x - 0.5) * 16);
     rxRaw.set(REST_RX + (0.5 - y) * 14);
-    mx.set(x * 100);
-    my.set(y * 100);
   };
   const onCardMouseLeave = () => {
     rxRaw.set(REST_RX);
     ryRaw.set(REST_RY);
-    mx.set(50);
-    my.set(50);
   };
 
   return (
@@ -522,7 +512,7 @@ export function CaseStudyPage() {
               <div className="cs-card-shadow" aria-hidden="true" />
               <motion.div
                 className="cs-card"
-                style={{ transform: cardTransform, '--rx': rxDeg, '--ry': ryDeg, '--mx': mxPct, '--my': myPct }}
+                style={{ transform: cardTransform }}
                 onMouseMove={onCardMouseMove}
                 onMouseLeave={onCardMouseLeave}
                 initial={{ opacity: 0 }}
@@ -579,8 +569,6 @@ export function CaseStudyPage() {
                     <span className="val accent">{project.client}</span>
                   </div>
                 </div>
-                <div className="cs-card-holo" />
-                <div className="cs-card-spec" />
                 <div className="cs-card-glass" />
                 </div>
                 <span className="card-corner tl" />

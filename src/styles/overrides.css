@@ -18,6 +18,16 @@ input,
 textarea,
 select { cursor: text; }
 
+/* The custom cursor stands in for every state — never reveal the native hand/arrow
+   over buttons/links. The ported prototype sets cursor:pointer in many places, which
+   flickers the native cursor in and out over the custom one. Hover devices only. */
+@media (hover: hover) {
+  button,
+  a,
+  [role="button"],
+  [data-cursor] { cursor: none !important; }
+}
+
 @media (hover: none), (pointer: coarse) {
   body,
   input,

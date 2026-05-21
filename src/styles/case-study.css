@@ -394,9 +394,8 @@
   content: ''; position: absolute; inset: 0;
   border-radius: 20px;
   pointer-events: none;
-  background: radial-gradient(circle 320px at var(--mx, 50%) var(--my, 50%),
-    rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.12) 30%, transparent 58%);
-  mix-blend-mode: screen;
+  background: radial-gradient(circle 380px at 32% 18%,
+    rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.08) 36%, transparent 62%);
   transform: translateZ(0.5px);
   z-index: 2;
 }
@@ -466,34 +465,15 @@
   pointer-events: none;
   transform: translateZ(22px);
   border-radius: 5px;
-  overflow: hidden;
   background:
     linear-gradient(125deg,
-      transparent 40%,
-      rgba(255,255,255,0.05) 46%,
-      rgba(255,255,255,0.17) 50%,
-      rgba(255,255,255,0.05) 54%,
-      transparent 60%);
-  background-size: 240% 240%;
-  background-position: var(--mx, 50%) var(--my, 50%);
-  mix-blend-mode: screen;
-  opacity: 0.6;
+      transparent 42%,
+      rgba(255,255,255,0.05) 47%,
+      rgba(255,255,255,0.12) 50%,
+      rgba(255,255,255,0.04) 53%,
+      transparent 58%);
+  opacity: 0.5;
   z-index: 6;
-}
-.cs-card-glass::after {
-  content: '';
-  position: absolute; inset: -10% -55%;
-  background: linear-gradient(115deg,
-    transparent 44%, rgba(255,255,255,0.22) 50%, transparent 56%);
-  animation: slabSweep 1000ms ease-out 220ms 1 both;
-}
-@keyframes slabSweep {
-  0%   { transform: translateX(-65%); opacity: 0; }
-  28%  { opacity: 1; }
-  100% { transform: translateX(65%);  opacity: 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .cs-card-glass::after { animation: none; }
 }
 
 /* depth layers — each child sits on a different Z plane for real parallax */

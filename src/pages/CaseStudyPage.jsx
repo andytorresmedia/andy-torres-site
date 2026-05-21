@@ -539,6 +539,16 @@ export function CaseStudyPage() {
     return () => window.removeEventListener('deviceorientation', onOrientation, true);
   }, [detailsOpen, gyroTiltActive, rxRaw, ryRaw]);
 
+  useEffect(() => {
+    if (muxId || !videoRef.current) return undefined;
+    const v = videoRef.current;
+    v.muted = true;
+    const tryPlay = () => v.play().catch(() => {});
+    tryPlay();
+    const t = setTimeout(tryPlay, 120);
+    return () => clearTimeout(t);
+  }, [muxId, project?.video]);
+
   if (!project) return <Navigate to="/work" replace />;
 
   const easeCardTiltToRest = () => {
@@ -664,7 +674,24 @@ export function CaseStudyPage() {
   };
 
   return (
-    <div className={`cs-overlay ${detailsOpen ? 'details-open' : ''}`} data-screen-label="Case Study">
+    <div className={`cs-overlay ${loading ? 'is-loading' : ''} ${detailsOpen ? 'details-open' : ''}`} data-screen-label="Case Study">
+      <div className="cs-video-wrap">
+        {muxId ? (
+          <MuxPlayer
+            playbackId={muxId}
+            streamType="on-demand"
+            autoPlay="muted"
+            loop
+            muted
+            accentColor="#ff5b1f"
+            metadata={{ video_title: project.title }}
+          />
+        ) : (
+          <video ref={videoRef} className="cs-video" src={asset(project.video)} autoPlay muted loop playsInline preload="auto" />
+        )}
+        <div className="cs-vignette" />
+      </div>
+
       {loading ? (
         <div className="cs-loading">
           <div className="loading-logo">
@@ -683,24 +710,6 @@ export function CaseStudyPage() {
         </div>
       ) : (
         <Fragment>
-          <div className="cs-video-wrap">
-            {muxId ? (
-              <MuxPlayer
-                playbackId={muxId}
-                streamType="on-demand"
-                autoPlay="muted"
-                loop
-                muted
-                accentColor="#ff5b1f"
-                poster={asset(project.poster)}
-                metadata={{ video_title: project.title }}
-              />
-            ) : (
-              <video ref={videoRef} className="cs-video" src={asset(project.video)} poster={asset(project.poster)} autoPlay muted loop playsInline />
-            )}
-            <div className="cs-vignette" />
-          </div>
-
           <div className="cs-top">
             <div className="cs-top-l">
               <span className="blip" />
@@ -763,9 +772,6 @@ export function CaseStudyPage() {
               <motion.div
                 className="cs-card"
                 style={{ transform: cardTransform }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.28 }}
               >
                 <div className="cs-card-back" />
                 <span className="slab-wall top" aria-hidden="true" />

@@ -17,6 +17,7 @@
 /* ─── loading w/ wordmark flash ─── */
 .cs-loading {
   position: absolute; inset: 0;
+  z-index: 30;
   display: flex; align-items: center; justify-content: center;
   flex-direction: column; gap: 22px;
   color: var(--paper);
@@ -105,18 +106,27 @@
   --sk: 1px solid var(--accent-live);
   opacity: 0.55;
 }
+.cs-overlay > .section-bracket.tl,
+.cs-overlay > .section-bracket.tr {
+  top: clamp(88px, 9.5vh, 112px);
+}
 
 /* ─── top bar ─── */
 .cs-top {
-  position: absolute; top: 0; left: 0; right: 0;
+  position: absolute; top: clamp(88px, 9.5vh, 112px); left: 0; right: 0;
   display: grid; grid-template-columns: 1fr auto 1fr;
-  padding: 24px var(--safe);
+  padding: 0 var(--safe);
   z-index: 5;
   color: var(--paper);
   transition: opacity 360ms ease;
 }
 .cs-overlay.details-open .cs-top { opacity: 0.35; }
-.cs-top-l { display: flex; align-items: center; gap: 14px; }
+.cs-top-l { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.cs-top-l .mono {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .cs-top-l .blip {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--accent-live);
@@ -127,12 +137,22 @@
   0%,100% { opacity: 1; transform: scale(1); }
   50%     { opacity: 0.4; transform: scale(0.82); }
 }
-.cs-top-c { text-align: center; }
+.cs-top-c {
+  text-align: center;
+  max-width: min(48vw, 620px);
+  min-width: 0;
+}
 .cs-top-c .ttl { font-family: var(--font-display); font-size: 28px; letter-spacing: 0.01em; line-height: 1; }
+.cs-top-c .ttl,
+.cs-top-c .meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .cs-top-c .meta { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--bone); opacity: 0.7; margin-top: 4px; }
 .cs-top-r {
+  min-width: 0;
   display: flex; justify-content: flex-end; align-items: flex-start; gap: 14px;
-  padding-top: clamp(46px, 6vh, 68px);
 }
 .cs-close {
   position: relative;
@@ -377,13 +397,20 @@
   position: absolute; inset: 0;
   z-index: 12;
   display: flex; align-items: center; justify-content: center;
+  background: transparent;
+}
+.cs-card-wrap::before {
+  content: '';
+  position: absolute; inset: 0;
   background: rgba(0,0,0,0.3);
   backdrop-filter: blur(2px);
+  pointer-events: none;
   animation: csFadeIn 320ms ease-out forwards;
 }
 /* slow idle float so the slab "breathes"; cursor/gyro tilt composes on top */
 .cs-card-float {
   position: relative;
+  z-index: 1;
   width: 760px;
   max-width: 92vw;
   height: 78vh;

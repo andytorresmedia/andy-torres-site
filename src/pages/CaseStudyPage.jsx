@@ -218,18 +218,18 @@ function GalleryTab({ project }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [items.length]);
 
-  const showFrame = (updater) => {
+  const showFrame = useCallback((updater) => {
     if (!items.length) return;
     setIdx((i) => (typeof updater === 'function' ? updater(i) : updater));
     setSmashKey((k) => k + 1);
-  };
-  const prev = () => {
+  }, [items.length]);
+  const prev = useCallback(() => {
     showFrame((i) => (i - 1 + items.length) % items.length);
-  };
-  const next = () => {
+  }, [showFrame, items.length]);
+  const next = useCallback(() => {
     showFrame((i) => (i + 1) % items.length);
-  };
-  const handleGalleryWheelDelta = (deltaX, deltaY) => {
+  }, [showFrame, items.length]);
+  const handleGalleryWheelDelta = useCallback((deltaX, deltaY) => {
     if (items.length < 2) return;
 
     const primaryDelta = Math.abs(deltaY) >= Math.abs(deltaX) ? deltaY : deltaX;
@@ -259,12 +259,12 @@ function GalleryTab({ project }) {
     }, 240);
 
     return true;
-  };
-  const onGalleryWheel = (e) => {
+  }, [items.length, next, prev]);
+  const onGalleryWheel = useCallback((e) => {
     if (!handleGalleryWheelDelta(e.deltaX, e.deltaY)) return;
     e.preventDefault();
     e.stopPropagation();
-  };
+  }, [handleGalleryWheelDelta]);
   const onStagePointerDownCapture = (e) => {
     if (items.length < 2 || (e.button !== undefined && e.button !== 0)) return;
 
@@ -303,7 +303,7 @@ function GalleryTab({ project }) {
       stage.removeEventListener(GALLERY_SHOW_EVENT, onGalleryShow);
       stage.removeEventListener(GALLERY_WHEEL_EVENT, onGalleryWheelProxy);
     };
-  });
+  }, [onGalleryWheel, prev, next, showFrame, handleGalleryWheelDelta]);
   const onPointerAction = (e, action) => {
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
@@ -567,6 +567,8 @@ export function CaseStudyPage() {
   const orientationBaseRef = useRef(null);
   const touchDragRef = useRef(null);
   const touchInteractingRef = useRef(false);
+  const detailsBtnRef = useRef(null);
+  const dialogWasOpenRef = useRef(false);
 
   // 3D tilt — only the rotation updates per mouse move (a cheap GPU transform);
   // the glow/sheen layers are static, so hover stays fluid even on huge displays.
@@ -608,6 +610,51 @@ export function CaseStudyPage() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [detailsOpen, closeRoute]);
+
+  // Dialog focus management: move focus into the card (its close button) on open,
+  // and restore it to the trigger when the card closes. Guarded so it never steals
+  // focus on the initial page load (only after the dialog has actually been opened).
+  useEffect(() => {
+    if (detailsOpen) {
+      dialogWasOpenRef.current = true;
+      const raf = requestAnimationFrame(() => cardCloseRef.current?.focus());
+      return () => cancelAnimationFrame(raf);
+    }
+    if (dialogWasOpenRef.current) detailsBtnRef.current?.focus();
+    return undefined;
+  }, [detailsOpen]);
+
+  // Focus trap: keep Tab / Shift+Tab inside the dialog while it's open, so aria-modal
+  // is honest. Focusables are recomputed on each keypress because the active tab's
+  // content (and thus its focusable elements) changes.
+  useEffect(() => {
+    if (!detailsOpen) return undefined;
+    const root = cardFloatRef.current;
+    if (!root) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key !== 'Tab') return;
+      const focusable = Array.from(
+        root.querySelectorAll(
+          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.getClientRects().length > 0);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || !root.contains(active)) {
+          last.focus();
+          e.preventDefault();
+        }
+      } else if (active === last || !root.contains(active)) {
+        first.focus();
+        e.preventDefault();
+      }
+    };
+    root.addEventListener('keydown', onKeyDown);
+    return () => root.removeEventListener('keydown', onKeyDown);
+  }, [detailsOpen]);
 
   useEffect(() => {
     if (detailsOpen) return;
@@ -797,22 +844,22 @@ export function CaseStudyPage() {
       }
     }
 
-    const cardRect = readCardLayoutRect(e.currentTarget);
-    const x = e.clientX - cardRect.left;
-    const y = e.clientY - cardRect.top;
-
+    // Tabs: map the pointer's SCREEN-space X across the tab strip's live bounding box
+    // (getBoundingClientRect, consistent with clientX) and clamp to a tab index. The
+    // old version mixed float-relative screen-x with inset-relative offsetLeft — the
+    // ~16px chrome frame between those origins skewed the index and tipped near-edge
+    // clicks into the wrong tab. We clamp (rather than require the point to land inside
+    // a tab rect) so an edge click never misses once the tilt shifts the strip.
     const tabsEl = cardTabsRef.current;
     if (!tabsEl) return;
 
-    const left = tabsEl.offsetLeft;
-    const top = tabsEl.offsetTop;
-    const width = tabsEl.offsetWidth;
-    const height = tabsEl.offsetHeight;
+    const stripRect = tabsEl.getBoundingClientRect();
+    if (!stripRect.width) return;
     const verticalSlack = 18;
+    if (e.clientY < stripRect.top - verticalSlack || e.clientY > stripRect.bottom + verticalSlack) return;
 
-    if (x < left || x > left + width || y < top - verticalSlack || y > top + height + verticalSlack) return;
-
-    const index = Math.min(CARD_TABS.length - 1, Math.max(0, Math.floor(((x - left) / width) * CARD_TABS.length)));
+    const frac = (e.clientX - stripRect.left) / stripRect.width;
+    const index = clamp(Math.floor(frac * CARD_TABS.length), 0, CARD_TABS.length - 1);
     setTab(CARD_TABS[index]);
     e.preventDefault();
     e.stopPropagation();
@@ -941,7 +988,7 @@ export function CaseStudyPage() {
           <span className="section-bracket bl" />
           <span className="section-bracket br" />
 
-          <button className="cs-details-btn" onClick={onDetailsButtonClick}>
+          <button ref={detailsBtnRef} className="cs-details-btn" onClick={onDetailsButtonClick}>
             {detailsOpen ? 'Hide File' : 'Open Project File'}
           </button>
 
@@ -958,6 +1005,9 @@ export function CaseStudyPage() {
               <div
                 ref={cardFloatRef}
                 className={`cs-card-float gallery-zone-${galleryHoverZone}`}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${project.title} — project file`}
                 onPointerDownCapture={onCardPointerDownCapture}
                 onMouseEnter={onCardMouseEnter}
                 onMouseMove={onCardMouseMove}

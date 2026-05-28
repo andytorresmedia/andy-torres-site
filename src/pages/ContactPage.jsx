@@ -2,8 +2,8 @@
 // serverless → Resend). In local dev there's no function, so failures fall back
 // to the success state (mock OK); in production, real errors surface inline.
 
-import { useState, Fragment } from 'react';
-import { STUDIO_EMAIL } from '../content/site';
+import { useState, useRef, Fragment } from 'react';
+import { STUDIO_EMAIL, BUDGETS } from '../content/site';
 
 const IS_DEV = process.env.NODE_ENV === 'development';
 
@@ -21,6 +21,10 @@ export function ContactPage() {
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  // Spam guards: a honeypot field (humans never fill it) + how long the form was
+  // open before submit (bots fire near-instantly). Both are checked server-side.
+  const [botField, setBotField] = useState('');
+  const startedAt = useRef(Date.now());
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -32,9 +36,11 @@ export function ContactPage() {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, company_url: botField, elapsedMs: Date.now() - startedAt.current }),
       });
       if (res.ok) {
+        // A 200 is a real send in production: when creds are missing there, the
+        // server returns 5xx (not a mock success), so this can't mask a dropped lead.
         setSent(true);
       } else if (IS_DEV) {
         setSent(true); // no serverless function under CRA dev — mock success
@@ -81,6 +87,18 @@ export function ContactPage() {
             </div>
           ) : (
             <form className="contact-form" onSubmit={submit}>
+              {/* honeypot: hidden from humans (off-screen, not tabbable, aria-hidden);
+                  bots fill it and the server silently drops the submission. */}
+              <input
+                type="text"
+                name="company_url"
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                value={botField}
+                onChange={(e) => setBotField(e.target.value)}
+                style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
+              />
               <div className="field-row">
                 <div className="field">
                   <label>Name</label>
@@ -127,11 +145,9 @@ export function ContactPage() {
                 <label>Budget</label>
                 <select required value={form.budget} onChange={set('budget')}>
                   <option value="">Pick a range…</option>
-                  <option>Under $10K</option>
-                  <option>$10K – $25K</option>
-                  <option>$25K – $50K</option>
-                  <option>$50K – $100K</option>
-                  <option>$100K+</option>
+                  {BUDGETS.map((b) => (
+                    <option key={b}>{b}</option>
+                  ))}
                 </select>
               </div>
 

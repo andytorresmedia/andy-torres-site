@@ -12,11 +12,57 @@
 //                     onboarding sender so the function works before a domain
 //                     is verified. Replace with a verified domain sender in prod.
 //
-// If RESEND_API_KEY or STUDIO_EMAIL are unset (local dev / pre-launch), the
-// function runs in "mock" mode: it logs the brief and returns { ok: true, mock: true }
-// instead of 500-ing, so the form's success state can be exercised end-to-end.
+// Mock mode: if RESEND_API_KEY/STUDIO_EMAIL are unset, the function logs the brief
+// and returns { ok: true, mock: true } so the form's success state is testable —
+// but ONLY outside production. In production, missing creds are a misconfiguration
+// that would silently drop a real lead, so we fail loud (5xx) instead, letting the
+// form show its "email us directly" fallback. (Vercel sets VERCEL_ENV.)
 
+// Canonical budget ranges. MUST stay in sync with BUDGETS in src/content/site.ts
+// (the form's <select>). The src/ and api/ trees can't share a module — CRA forbids
+// importing from outside src/, and this function isn't transpiled — so this is a
+// deliberate mirror, not a duplicate to be DRY-ed away.
 const ALLOWED_BUDGETS = ['Under $10K', '$10K – $25K', '$25K – $50K', '$50K – $100K', '$100K+'];
+
+// Field length caps — keep briefs sane and the inbox un-bloatable.
+const MAX = { name: 120, email: 200, company: 120, type: 60, timeline: 60, budget: 40, message: 5000 };
+
+// A human takes more than a couple seconds to fill the form; near-instant submits
+// are bots. elapsedMs is measured on the client against its own clock, so there's
+// no server/client clock-skew to worry about.
+const MIN_FILL_MS = 2000;
+
+// Best-effort in-memory per-IP rate limit (sliding window). Serverless instances are
+// ephemeral and not shared, so this curbs bursts within a warm instance but is NOT a
+// durable cross-instance limit — back it with Vercel KV / Upstash for that, or add a
+// Cloudflare Turnstile challenge for real bot resistance. Fails OPEN so a genuine lead
+// is never blocked by a limiter hiccup.
+const RATE_LIMIT = { windowMs: 60000, max: 5 };
+const rateHits = new Map(); // ip -> timestamps[]  (module scope: persists across warm invocations)
+
+function clientIp(req) {
+  const fwd = req.headers && req.headers['x-forwarded-for'];
+  if (typeof fwd === 'string' && fwd) return fwd.split(',')[0].trim();
+  return (req.socket && req.socket.remoteAddress) || '';
+}
+
+function rateLimited(ip, now) {
+  if (!ip) return false;
+  try {
+    const cutoff = now - RATE_LIMIT.windowMs;
+    const hits = (rateHits.get(ip) || []).filter((t) => t > cutoff);
+    hits.push(now);
+    rateHits.set(ip, hits);
+    if (rateHits.size > 5000) {
+      for (const [key, times] of rateHits) {
+        if (!times.some((t) => t > cutoff)) rateHits.delete(key);
+      }
+    }
+    return hits.length > RATE_LIMIT.max;
+  } catch (_e) {
+    return false; // fail open
+  }
+}
 
 function safeParse(value) {
   if (!value) return {};
@@ -37,6 +83,21 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
+// Collapse control chars / newlines to single spaces — for values placed in the
+// email subject line, where a raw newline has no business. (Done char-by-char to
+// avoid embedding control-character literals in this source file.)
+function oneLine(str) {
+  const s = String(str == null ? '' : str);
+  let out = '';
+  for (let i = 0; i < s.length; i += 1) {
+    const code = s.charCodeAt(i);
+    out += code < 32 || code === 127 ? ' ' : s[i];
+  }
+  return out.replace(/\s{2,}/g, ' ').trim();
+}
+
+const cap = (str, n) => (str.length > n ? str.slice(0, n) : str);
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -44,13 +105,33 @@ module.exports = async function handler(req, res) {
   }
 
   const body = safeParse(req.body);
-  const name = (body.name || '').trim();
-  const email = (body.email || '').trim();
-  const company = (body.company || '').trim();
-  const type = (body.type || '').trim();
-  const timeline = (body.timeline || '').trim();
-  const budget = (body.budget || '').trim();
-  const message = (body.message || '').trim();
+
+  // ── Spam guards (cheap, no deps). Soft-accept (200 ok) so bots don't learn the
+  //    trap; the brief is simply dropped. ──
+  if (typeof body.company_url === 'string' && body.company_url.trim() !== '') {
+    // eslint-disable-next-line no-console
+    console.warn('[contact] honeypot tripped — dropping submission.');
+    return res.status(200).json({ ok: true });
+  }
+  const elapsedMs = Number(body.elapsedMs);
+  if (Number.isFinite(elapsedMs) && elapsedMs >= 0 && elapsedMs < MIN_FILL_MS) {
+    // eslint-disable-next-line no-console
+    console.warn('[contact] submission too fast (', elapsedMs, 'ms) — dropping.');
+    return res.status(200).json({ ok: true });
+  }
+
+  // Burst guard for traffic that slips past the honeypot/timing checks.
+  if (rateLimited(clientIp(req), Date.now())) {
+    return res.status(429).json({ ok: false, error: 'Too many requests — try again in a minute, or email us directly.' });
+  }
+
+  const name = cap((body.name || '').trim(), MAX.name);
+  const email = cap((body.email || '').trim(), MAX.email);
+  const company = cap((body.company || '').trim(), MAX.company);
+  const type = cap((body.type || '').trim(), MAX.type);
+  const timeline = cap((body.timeline || '').trim(), MAX.timeline);
+  const budget = cap((body.budget || '').trim(), MAX.budget);
+  const message = cap((body.message || '').trim(), MAX.message);
 
   // Validation — mirror the form's required fields.
   if (!name || !email || !type || !timeline || !budget || !message) {
@@ -66,9 +147,18 @@ module.exports = async function handler(req, res) {
   const apiKey = process.env.RESEND_API_KEY;
   const to = process.env.STUDIO_EMAIL;
   const from = process.env.CONTACT_FROM || 'Front Row <onboarding@resend.dev>';
+  const isProduction = process.env.VERCEL_ENV === 'production';
 
-  // Mock mode: no creds configured. Don't fail the user — log and succeed.
+  // No creds configured. In production this would SILENTLY DROP a real lead behind a
+  // false "Brief received" — so fail loud and let the form show its "email us
+  // directly" fallback. Outside production (local dev / preview), stay in mock mode
+  // so the success state can be exercised end-to-end.
   if (!apiKey || !to) {
+    if (isProduction) {
+      // eslint-disable-next-line no-console
+      console.error('[contact] MISCONFIG: RESEND_API_KEY/STUDIO_EMAIL unset in production — brief NOT delivered for:', email);
+      return res.status(500).json({ ok: false, error: 'Our inbox is briefly unavailable. Please email us directly.' });
+    }
     // eslint-disable-next-line no-console
     console.warn('[contact] RESEND_API_KEY or STUDIO_EMAIL not set — mock mode. Brief from:', name, email);
     return res.status(200).json({ ok: true, mock: true });
@@ -110,7 +200,7 @@ module.exports = async function handler(req, res) {
       from,
       to,
       replyTo: email,
-      subject: `New brief — ${name}${company ? ` · ${company}` : ''}`,
+      subject: `New brief — ${oneLine(name)}${company ? ` · ${oneLine(company)}` : ''}`,
       text: lines.join('\n'),
       html,
     });

@@ -8,6 +8,11 @@ export const STUDIO_EMAIL = 'hello@frontrow.studio';
 export const STUDIO_PHONE = '+1 (323) 000 — 0000';
 export const STUDIO_LOCATION = 'Los Angeles, CA';
 
+/** Budget ranges offered in the contact form's <select>. Intentionally mirrored by
+ *  ALLOWED_BUDGETS in api/contact.js (src/ and api/ can't share a module) — edit both,
+ *  identically, or the server will reject valid submissions. */
+export const BUDGETS = ['Under $10K', '$10K – $25K', '$25K – $50K', '$50K – $100K', '$100K+'] as const;
+
 export interface ClientLogo {
   name: string;
   src?: string;

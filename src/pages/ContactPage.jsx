@@ -3,7 +3,7 @@
 // to the success state (mock OK); in production, real errors surface inline.
 
 import { useState, useRef, Fragment } from 'react';
-import { STUDIO_EMAIL, BUDGETS } from '../content/site';
+import { STUDIO_EMAIL, BUDGETS, HOW_HEARD } from '../content/site';
 
 const IS_DEV = process.env.NODE_ENV === 'development';
 
@@ -16,7 +16,7 @@ const SOCIALS = {
 
 export function ContactPage() {
   const [form, setForm] = useState({
-    name: '', email: '', company: '', type: '', timeline: '', budget: '', message: '',
+    name: '', email: '', company: '', type: '', timeline: '', budget: '', message: '', link: '', howHeard: '',
   });
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -101,11 +101,11 @@ export function ContactPage() {
               />
               <div className="field-row">
                 <div className="field">
-                  <label>Name</label>
+                  <label>Name <span className="req" aria-hidden="true">*</span></label>
                   <input required value={form.name} onChange={set('name')} placeholder="Full name" />
                 </div>
                 <div className="field">
-                  <label>Email</label>
+                  <label>Email <span className="req" aria-hidden="true">*</span></label>
                   <input required type="email" value={form.email} onChange={set('email')} placeholder="you@company.com" />
                 </div>
               </div>
@@ -117,7 +117,7 @@ export function ContactPage() {
 
               <div className="field-row">
                 <div className="field">
-                  <label>Project type</label>
+                  <label>Project type <span className="req" aria-hidden="true">*</span></label>
                   <select required value={form.type} onChange={set('type')}>
                     <option value="">Pick a lane…</option>
                     <option>Sports team / league</option>
@@ -129,7 +129,7 @@ export function ContactPage() {
                   </select>
                 </div>
                 <div className="field">
-                  <label>Timeline</label>
+                  <label>Timeline <span className="req" aria-hidden="true">*</span></label>
                   <select required value={form.timeline} onChange={set('timeline')}>
                     <option value="">When is air?</option>
                     <option>Rush · &lt; 2 weeks</option>
@@ -142,7 +142,7 @@ export function ContactPage() {
               </div>
 
               <div className="field">
-                <label>Budget</label>
+                <label>Budget <span className="req" aria-hidden="true">*</span></label>
                 <select required value={form.budget} onChange={set('budget')}>
                   <option value="">Pick a range…</option>
                   {BUDGETS.map((b) => (
@@ -152,8 +152,23 @@ export function ContactPage() {
               </div>
 
               <div className="field">
-                <label>Brief</label>
+                <label>Brief <span className="req" aria-hidden="true">*</span></label>
                 <textarea required value={form.message} onChange={set('message')} placeholder="What is it, who's it for, and what does it have to do?" />
+              </div>
+
+              <div className="field">
+                <label>Reference link</label>
+                <input type="text" inputMode="url" value={form.link} onChange={set('link')} placeholder="Frame.io, Dropbox, a deck — anything that shows it (optional)" />
+              </div>
+
+              <div className="field">
+                <label>How did you hear about us?</label>
+                <select value={form.howHeard} onChange={set('howHeard')}>
+                  <option value="">Optional…</option>
+                  {HOW_HEARD.map((h) => (
+                    <option key={h}>{h}</option>
+                  ))}
+                </select>
               </div>
 
               {error && (

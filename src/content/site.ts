@@ -11,7 +11,13 @@ export const STUDIO_LOCATION = 'Los Angeles, CA';
 /** Budget ranges offered in the contact form's <select>. Intentionally mirrored by
  *  ALLOWED_BUDGETS in api/contact.js (src/ and api/ can't share a module) — edit both,
  *  identically, or the server will reject valid submissions. */
-export const BUDGETS = ['Under $10K', '$10K – $25K', '$25K – $50K', '$50K – $100K', '$100K+'] as const;
+export const BUDGETS = ['Under $10K', '$10K – $25K', '$25K – $50K', '$50K – $100K', '$100K+', 'Not sure yet — let\'s talk'] as const;
+
+/** "How did you hear about us?" options — an optional attribution field on the contact
+ *  form, captured purely as studio data. Unlike BUDGETS this is NOT allowlisted by
+ *  api/contact.js (the server just length-caps + escapes whatever arrives), so this
+ *  list can change freely without touching the serverless function. */
+export const HOW_HEARD = ['Referral / word of mouth', 'Google / search', 'Instagram', 'LinkedIn', 'Vimeo', 'Saw your work / reel', 'Event / conference', 'Other'] as const;
 
 export interface ClientLogo {
   name: string;

@@ -22,10 +22,10 @@
 // (the form's <select>). The src/ and api/ trees can't share a module — CRA forbids
 // importing from outside src/, and this function isn't transpiled — so this is a
 // deliberate mirror, not a duplicate to be DRY-ed away.
-const ALLOWED_BUDGETS = ['Under $10K', '$10K – $25K', '$25K – $50K', '$50K – $100K', '$100K+'];
+const ALLOWED_BUDGETS = ['Under $10K', '$10K – $25K', '$25K – $50K', '$50K – $100K', '$100K+', 'Not sure yet — let\'s talk'];
 
 // Field length caps — keep briefs sane and the inbox un-bloatable.
-const MAX = { name: 120, email: 200, company: 120, type: 60, timeline: 60, budget: 40, message: 5000 };
+const MAX = { name: 120, email: 200, company: 120, type: 60, timeline: 60, budget: 40, message: 5000, link: 1000, howHeard: 60 };
 
 // A human takes more than a couple seconds to fill the form; near-instant submits
 // are bots. elapsedMs is measured on the client against its own clock, so there's
@@ -98,6 +98,23 @@ function oneLine(str) {
 
 const cap = (str, n) => (str.length > n ? str.slice(0, n) : str);
 
+// Reference link -> a safe clickable href, or '' if it isn't a plain http(s) URL.
+// Prepends https:// when the user omits a scheme; rejects everything else (javascript:,
+// data:, mailto:, …) so a hostile value can never become a dangerous href in the brief
+// email. When this returns '', the raw text is still shown escaped, so the studio never
+// loses what was actually typed.
+function safeHref(str) {
+  const t = String(str == null ? '' : str).trim();
+  if (!t) return '';
+  try {
+    const u = new URL(/^https?:\/\//i.test(t) ? t : `https://${t}`);
+    if ((u.protocol === 'http:' || u.protocol === 'https:') && u.hostname.includes('.')) return u.href;
+  } catch (_e) {
+    /* not a parseable URL — fall through to '' */
+  }
+  return '';
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -132,6 +149,9 @@ module.exports = async function handler(req, res) {
   const timeline = cap((body.timeline || '').trim(), MAX.timeline);
   const budget = cap((body.budget || '').trim(), MAX.budget);
   const message = cap((body.message || '').trim(), MAX.message);
+  const link = cap((body.link || '').trim(), MAX.link);
+  const howHeard = cap((body.howHeard || '').trim(), MAX.howHeard);
+  const linkHref = safeHref(link);
 
   // Validation — mirror the form's required fields.
   if (!name || !email || !type || !timeline || !budget || !message) {
@@ -171,9 +191,11 @@ module.exports = async function handler(req, res) {
     `Type:      ${type}`,
     `Timeline:  ${timeline}`,
     `Budget:    ${budget}`,
+    howHeard ? `Heard via: ${howHeard}` : null,
     '',
     'Brief:',
     message,
+    link ? `Reference: ${link}` : null,
   ].filter(Boolean);
 
   const html = `
@@ -185,11 +207,18 @@ module.exports = async function handler(req, res) {
         <tr><td style="color:#888;padding-right:18px;">Project type</td><td>${escapeHtml(type)}</td></tr>
         <tr><td style="color:#888;padding-right:18px;">Timeline</td><td>${escapeHtml(timeline)}</td></tr>
         <tr><td style="color:#888;padding-right:18px;">Budget</td><td>${escapeHtml(budget)}</td></tr>
+        ${howHeard ? `<tr><td style="color:#888;padding-right:18px;">How heard</td><td>${escapeHtml(howHeard)}</td></tr>` : ''}
       </table>
       <div style="margin-top:22px;padding-top:18px;border-top:1px solid #25262a;">
         <div style="color:#888;font-size:12px;margin-bottom:8px;">Brief</div>
         <div style="font-family:Arial,sans-serif;white-space:pre-wrap;line-height:1.6;">${escapeHtml(message)}</div>
       </div>
+      ${link ? `<div style="margin-top:18px;padding-top:14px;border-top:1px solid #25262a;">
+        <div style="color:#888;font-size:12px;margin-bottom:6px;">Reference link</div>
+        ${linkHref
+          ? `<a href="${escapeHtml(linkHref)}" style="color:#ff7a3e;word-break:break-all;">${escapeHtml(link)}</a>`
+          : `<span style="word-break:break-all;">${escapeHtml(link)}</span>`}
+      </div>` : ''}
     </div>`;
 
   try {

@@ -343,6 +343,7 @@
   letter-spacing: 0.18em; text-transform: uppercase;
   color: var(--mute);
 }
+.field label .req { color: var(--accent-live, var(--hot)); }
 .field input,
 .field select,
 .field textarea {
